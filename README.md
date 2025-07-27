@@ -1,2 +1,2 @@
-# technical-content-portal
-Portal for digitizing and accessing technical content
+# AI-Proctored-Exam-System
+An AI-powered automated exam proctoring system that detects face spoofing, eye movement, and multiple faces to ensure secure and fair online assessments.
