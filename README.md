@@ -1,6 +1,14 @@
-# Proctoring System
+# AI-Proctored-Exam-System
+An AI-powered automated exam proctoring system that detects face spoofing, eye movement, and multiple faces to ensure secure and fair online assessments.
 
-A comprehensive online proctoring platform designed to ensure exam integrity through advanced AI-powered monitoring, real-time surveillance, and automated cheating detection.
+# Tech Stack
+-Frontend: React Bootstrap
+
+>>>>>>> d61bd44c14e526798f34607d0432a8a98ebbef00
+=======
+# AI-Proctored-Exam-System
+
+An AI-powered automated exam proctoring system that detects face spoofing, eye movement, and multiple faces to ensure secure and fair online assessments.
 
 ## Project Description
 
@@ -19,16 +27,19 @@ This full-stack application provides a secure environment for conducting online 
 ## Tech Stack
 
 ### Frontend
-- React 
-- Bootstrap 
-
+- React 19.2.0
+- React Router DOM 7.9.3
+- Bootstrap 5.3.8
+- Axios 1.12.2
+- Testing Library (Jest, React Testing Library)
 
 ### Backend
 - Node.js with Express 5.1.0
 - MongoDB with Mongoose 8.19.1
 - JWT for authentication
+- Multer for file uploads
 - bcryptjs for password hashing
-
+- CORS for cross-origin requests
 
 ## Prerequisites
 
@@ -42,8 +53,8 @@ Before running this application, make sure you have the following installed:
 
 1. **Clone the repository:**
    ```bash
-   git clone <repository-url>
-   cd proctoAI
+   git clone https://github.com/ShalleySharma/AI-Proctored-Exam-System.git
+   cd AI-Proctored-Exam-System
    ```
 
 2. **Install root dependencies:**
@@ -115,7 +126,7 @@ Before running this application, make sure you have the following installed:
 ## Project Structure
 
 ```
-proctoAI/
+AI-Proctored-Exam-System/
 ├── backend/
 │   ├── config/
 │   │   └── db.js
@@ -126,16 +137,16 @@ proctoAI/
 │   │   ├── Session.js
 │   │   ├── Snapshot.js
 │   │   └── Student.js
-│   ├── routes/
-│   │   ├── auth.js
-│   │   └── exam.js
-│   ├── uploads/
-│   │   ├── login/
-│   │   ├── signup/
-│   │   ├── snapshots/
-│   │   └── violations/
-│   ├── package.json
-│   └── server.js
+│   │   ├── routes/
+│   │   │   ├── auth.js
+│   │   │   └── exam.js
+│   │   ├── uploads/
+│   │   │   ├── login/
+│   │   │   ├── signup/
+│   │   │   ├── snapshots/
+│   │   │   └── violations/
+│   │   ├── package.json
+│   │   └── server.js
 ├── frontend/
 │   ├── public/
 │   │   ├── images/
@@ -178,3 +189,11 @@ For support or questions, please contact support@proctoringsystem.com
 ---
 
 **Note:** This system is designed for educational purposes. Ensure compliance with privacy laws and regulations when implementing in production environments.
+=======
+# AI-Proctored-Exam-System
+An AI-powered automated exam proctoring system that detects face spoofing, eye movement, and multiple faces to ensure secure and fair online assessments.
+
+# Tech Stack
+-Frontend: React Bootstrap
+
+>>>>>>> d61bd44c14e526798f34607d0432a8a98ebbef00
