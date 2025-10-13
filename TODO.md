@@ -1,0 +1,3 @@
+- [x] Add autocomplete="current-password" to password input in Signup.js
+- [x] Improve camera error handling in startCamera function in Signup.js
+- [ ] Test the signup page to verify fixes
