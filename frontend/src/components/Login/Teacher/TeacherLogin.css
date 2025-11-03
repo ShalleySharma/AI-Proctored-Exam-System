@@ -1,0 +1,322 @@
+/* TeacherLogin.css - Professional UI with White and Green Theme */
+
+:root {
+  --primary-bg: #FFFFFF;
+  --accent-green: #00A85A;
+  --secondary-bg: #F8F9FA;
+  --text-dark: #1A1A1A;
+  --text-muted: #6c757d;
+  --shadow-light: 0 2px 15px rgba(0, 168, 90, 0.08);
+  --shadow-medium: 0 8px 30px rgba(0, 168, 90, 0.12);
+  --shadow-strong: 0 15px 35px rgba(0, 168, 90, 0.15);
+  --border-radius: 16px;
+  --transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.teacher-login-container {
+  min-height: 100vh;
+  background: var(--primary-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.teacher-login-card {
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-medium);
+  overflow: hidden;
+  max-width: 900px;
+  width: 100%;
+  display: flex;
+  transition: var(--transition);
+  border: 1px solid rgba(0, 168, 90, 0.1);
+}
+
+.teacher-login-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-strong);
+  border-color: rgba(0, 168, 90, 0.2);
+}
+
+.teacher-login-left {
+  flex: 1;
+  background: linear-gradient(135deg, var(--accent-green) 0%, #028E4B 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.teacher-login-left::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 30% 70%, rgba(255,255,255,0.1) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.teacher-login-left img {
+  width: 200px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  position: relative;
+  z-index: 2;
+  transition: transform 0.3s ease;
+}
+
+.teacher-login-left img:hover {
+  transform: scale(1.05);
+}
+
+.teacher-login-left h3 {
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.teacher-login-left p {
+  font-size: 1rem;
+  opacity: 0.9;
+  text-align: center;
+  line-height: 1.6;
+  position: relative;
+  z-index: 2;
+}
+
+.teacher-login-right {
+  flex: 1;
+  padding: 40px;
+  background: var(--secondary-bg);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.teacher-login-title {
+  text-align: center;
+  margin-bottom: 30px;
+  color: var(--text-dark);
+  font-size: 2rem;
+  font-weight: 700;
+  position: relative;
+}
+
+.teacher-login-title::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent-green), #028E4B);
+  border-radius: 2px;
+}
+
+.teacher-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.teacher-login-input-group {
+  position: relative;
+}
+
+.teacher-login-input {
+  width: 100%;
+  padding: 16px 20px 16px 50px;
+  border: 2px solid rgba(0, 168, 90, 0.2);
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 500;
+  transition: var(--transition);
+  background: white;
+  color: var(--text-dark);
+  box-shadow: var(--shadow-light);
+}
+
+.teacher-login-input:focus {
+  outline: none;
+  border-color: var(--accent-green);
+  box-shadow: 0 0 0 4px rgba(0, 168, 90, 0.1), var(--shadow-medium);
+  transform: translateY(-2px);
+}
+
+.teacher-login-input::placeholder {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.teacher-login-input-group::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+
+.teacher-login-input-group:nth-child(1)::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236c757d'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207'/%3E%3C/svg%3E");
+}
+
+.teacher-login-input-group:nth-child(2)::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236c757d'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z'/%3E%3C/svg%3E");
+}
+
+.teacher-login-input:focus + ::before,
+.teacher-login-input-group:focus-within::before {
+  opacity: 1;
+}
+
+.teacher-login-submit-btn {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, var(--accent-green) 0%, #028E4B 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+  margin-top: 10px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-light);
+}
+
+.teacher-login-submit-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.teacher-login-submit-btn:hover::before {
+  left: 100%;
+}
+
+.teacher-login-submit-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-medium);
+}
+
+.teacher-login-submit-btn:active {
+  transform: translateY(-1px);
+}
+
+.teacher-login-footer {
+  text-align: center;
+  margin-top: 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.teacher-login-footer a {
+  color: var(--accent-green);
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.teacher-login-footer a::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--accent-green);
+  transition: width 0.3s ease;
+}
+
+.teacher-login-footer a:hover::after {
+  width: 100%;
+}
+
+.teacher-login-footer a:hover {
+  color: #028E4B;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .teacher-login-card {
+    flex-direction: column;
+    max-width: 100%;
+  }
+
+  .teacher-login-left,
+  .teacher-login-right {
+    flex: none;
+    padding: 20px;
+  }
+
+  .teacher-login-left img {
+    width: 150px;
+  }
+
+  .teacher-login-title {
+    font-size: 1.5rem;
+  }
+
+  .teacher-login-input {
+    padding: 14px 16px 14px 45px;
+    font-size: 16px;
+  }
+
+  .teacher-login-submit-btn {
+    padding: 16px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .teacher-login-container {
+    padding: 10px;
+  }
+
+  .teacher-login-card {
+    border-radius: 12px;
+  }
+
+  .teacher-login-left,
+  .teacher-login-right {
+    padding: 20px 15px;
+  }
+
+  .teacher-login-left h3 {
+    font-size: 1.5rem;
+  }
+
+  .teacher-login-title {
+    font-size: 1.5rem;
+  }
+}

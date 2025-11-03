@@ -1,9 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 function StudentDashboard() {
   const [examResults, setExamResults] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+  const reportRef = useRef(null);
 
   useEffect(() => {
     fetchExamResults();
@@ -71,12 +75,146 @@ function StudentDashboard() {
 
   const totalViolations = examResults.violations ? Object.values(examResults.violations).reduce((a, b) => a + b, 0) : 0;
 
+  const generatePDF = async () => {
+    setPdfGenerating(true);
+    try {
+      const element = reportRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#667eea'
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+
+      const imgWidth = 210;
+      const pageHeight = 295;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+
+      let position = 0;
+
+      // Add first page
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      // Add additional pages if needed
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      // Add header information
+      pdf.setFontSize(16);
+      pdf.setTextColor(40, 40, 40);
+      pdf.text('Java Programming Certification Exam', 105, 20, { align: 'center' });
+      pdf.setFontSize(12);
+      pdf.text(`Exam Date: ${new Date(examResults.completedAt).toLocaleDateString()}`, 105, 35, { align: 'center' });
+      pdf.text(`Score: ${examResults.score}/${examResults.totalQuestions} (${examResults.percentage}%)`, 105, 45, { align: 'center' });
+
+      pdf.save(`Java_Exam_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Error generating PDF. Please try again.');
+    } finally {
+      setPdfGenerating(false);
+    }
+  };
+
+  const viewPDF = async () => {
+    setPdfGenerating(true);
+    try {
+      const element = reportRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#667eea'
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+
+      const imgWidth = 210;
+      const pageHeight = 295;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      // Add header information
+      pdf.setFontSize(16);
+      pdf.setTextColor(40, 40, 40);
+      pdf.text('Java Programming Certification Exam', 105, 20, { align: 'center' });
+      pdf.setFontSize(12);
+      pdf.text(`Exam Date: ${new Date(examResults.completedAt).toLocaleDateString()}`, 105, 35, { align: 'center' });
+      pdf.text(`Score: ${examResults.score}/${examResults.totalQuestions} (${examResults.percentage}%)`, 105, 45, { align: 'center' });
+
+      const pdfBlob = pdf.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      window.open(pdfUrl, '_blank');
+    } catch (error) {
+      console.error('Error viewing PDF:', error);
+      alert('Error viewing PDF. Please try again.');
+    } finally {
+      setPdfGenerating(false);
+    }
+  };
+
   return (
     <div className="container-fluid mt-4" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh', paddingBottom: '50px' }}>
       <div className="container">
-        <h1 className="text-center mb-5 text-white" style={{ fontWeight: 'bold', textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}>
-          📊 Your Exam Report
-        </h1>
+        <div className="text-center mb-4">
+          <h1 className="text-white mb-3" style={{ fontWeight: 'bold', textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}>
+            📊 Your Exam Report
+          </h1>
+          <div className="d-flex justify-content-center gap-3 mb-4">
+            <button
+              onClick={viewPDF}
+              disabled={pdfGenerating}
+              className="btn btn-primary btn-lg px-4 py-2"
+              style={{
+                borderRadius: '25px',
+                fontWeight: 'bold',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                border: 'none'
+              }}
+            >
+              <i className="bi bi-eye me-2"></i>
+              {pdfGenerating ? 'Generating...' : 'View PDF'}
+            </button>
+            <button
+              onClick={generatePDF}
+              disabled={pdfGenerating}
+              className="btn btn-success btn-lg px-4 py-2"
+              style={{
+                borderRadius: '25px',
+                fontWeight: 'bold',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                border: 'none'
+              }}
+            >
+              <i className="bi bi-download me-2"></i>
+              {pdfGenerating ? 'Generating...' : 'Download PDF'}
+            </button>
+          </div>
+        </div>
+
+        <div ref={reportRef} style={{ background: 'white', padding: '20px', borderRadius: '15px', boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
 
         {/* Score Overview */}
         <div className="row mb-5">
@@ -291,6 +429,7 @@ function StudentDashboard() {
         <div className="text-center text-white">
           <p className="mb-0">Report generated on {new Date().toLocaleDateString()}</p>
           <small>ProctoAI - Advanced Proctoring System</small>
+        </div>
         </div>
       </div>
     </div>

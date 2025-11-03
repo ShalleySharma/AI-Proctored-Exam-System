@@ -7,7 +7,8 @@ const StudentSchema = new mongoose.Schema({
   year: String,
   email: { type: String, unique: true },
   password: String,
-  photo_path: String
+  photo_path: String,
+  created_at: { type: Date, default: Date.now }
 });
 
 export default mongoose.model('Student', StudentSchema);

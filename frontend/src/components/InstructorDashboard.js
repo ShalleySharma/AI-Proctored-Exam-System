@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 function InstructorDashboard() {
   const [sessions, setSessions] = useState([]);
-  const [snapshots, setSnapshots] = useState([]);
 
   useEffect(() => {
     fetchSessions();
@@ -18,96 +18,73 @@ function InstructorDashboard() {
     }
   };
 
-  const fetchSnapshots = async (sessionId) => {
-    try {
-      const res = await axios.get(`http://localhost:5000/api/exam/snapshots/${sessionId}`);
-      setSnapshots(res.data);
-    } catch (err) {
-      alert('Failed to fetch snapshots');
-    }
+  const handleViewPDF = (sessionId) => {
+    window.open(`http://localhost:5000/api/exam/result/${sessionId}`, '_blank');
+  };
+
+  const handleDownloadPDF = (sessionId) => {
+    const link = document.createElement('a');
+    link.href = `http://localhost:5000/api/exam/result/${sessionId}`;
+    link.download = `ExamResult_${sessionId}.pdf`;
+    link.click();
+  };
+
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    const day = date.toLocaleDateString('en-US', { weekday: 'long' });
+    const formatted = date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    return `${formatted} (${day})`;
   };
 
   return (
-    <div className="container mt-5">
-      <h2 className="text-center mb-4">Instructor Dashboard</h2>
-      <div className="row">
-        <div className="col-md-6">
-          <h4>Sessions</h4>
-          <ul className="list-group">
-            {sessions.map(session => (
-              <li key={session._id} className="list-group-item">
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <span>{session.student_id.name} - {session.status}</span>
-                  <button className="btn btn-sm btn-primary" onClick={() => fetchSnapshots(session._id)}>
-                    View Snapshots
-                  </button>
-                </div>
-                <div className="row text-center">
-                  <div className="col-6 col-md-4 mb-2">
-                    <div className="p-2 bg-light rounded">
-                      <i className="bi bi-arrow-repeat me-2" style={{ color: '#f0ad4e' }}></i>
-                      Tab Switches
-                      <span className="badge bg-warning text-dark ms-2">{session.violation_counts?.tab_switches || 0}</span>
-                    </div>
+    <div className="container py-4">
+      <h2 className="text-center mb-4 fw-bold text-primary">📘 Instructor Dashboard</h2>
+
+      {sessions.length === 0 ? (
+        <p className="text-center text-muted">No sessions found.</p>
+      ) : (
+        <div className="timetable-container">
+          {sessions.map((session, index) => (
+            <div key={index} className="mb-4">
+              {/* Date Header */}
+              <h6 className="text-muted fw-semibold mb-3">
+                {formatDate(session.date || new Date())}
+              </h6>
+
+              {/* Exam Card */}
+              <div className="card shadow-sm border-0 rounded-4 mb-2 p-3 timetable-card">
+                <div className="d-flex justify-content-between align-items-center flex-wrap">
+                  <div>
+                    <h5 className="mb-1 text-dark">{session.exam_name || 'Exam Name'}</h5>
+                    <p className="mb-0 text-secondary">
+                      Class: <strong>{session.student_id?.class || '6th'}</strong> |
+                      Student: <strong>{session.student_id?.name || 'Unknown'}</strong>
+                    </p>
+                    <p className="mb-0 small text-muted mt-1">
+                      Time: {session.start_time || '8:00 AM'} - {session.end_time || '8:30 AM'}
+                    </p>
                   </div>
-                  <div className="col-6 col-md-4 mb-2">
-                    <div className="p-2 bg-light rounded">
-                      <i className="bi bi-window-dock me-2" style={{ color: '#d9534f' }}></i>
-                      Window Focus Loss
-                      <span className="badge bg-danger ms-2">{session.violation_counts?.window_focus_loss || 0}</span>
-                    </div>
-                  </div>
-                  <div className="col-6 col-md-4 mb-2">
-                    <div className="p-2 bg-light rounded">
-                      <i className="bi bi-camera-video-off me-2" style={{ color: '#6c757d' }}></i>
-                      Camera Issues
-                      <span className="badge bg-secondary ms-2">{session.violation_counts?.camera_issues || 0}</span>
-                    </div>
-                  </div>
-                  <div className="col-6 col-md-4 mb-2">
-                    <div className="p-2 bg-light rounded">
-                      <i className="bi bi-wifi-off me-2" style={{ color: '#d9534f' }}></i>
-                      Internet Disconnects
-                      <span className="badge bg-danger ms-2">{session.violation_counts?.internet_disconnects || 0}</span>
-                    </div>
-                  </div>
-                  <div className="col-6 col-md-4 mb-2">
-                    <div className="p-2 bg-light rounded">
-                      <i className="bi bi-people-fill me-2" style={{ color: '#5bc0de' }}></i>
-                      Multiple Faces Detected
-                      <span className="badge bg-info ms-2">{session.violation_counts?.multiple_faces_detected || 0}</span>
-                    </div>
-                  </div>
-                  <div className="col-6 col-md-4 mb-2">
-                    <div className="p-2 bg-primary text-white rounded">
-                      Total Violations
-                      <span className="badge bg-primary ms-2">
-                        {(session.violation_counts?.tab_switches || 0) +
-                          (session.violation_counts?.window_focus_loss || 0) +
-                          (session.violation_counts?.camera_issues || 0) +
-                          (session.violation_counts?.internet_disconnects || 0) +
-                          (session.violation_counts?.multiple_faces_detected || 0)}
-                      </span>
-                    </div>
+
+                  <div className="d-flex gap-2 mt-3 mt-md-0">
+                    <button
+                      className="btn btn-outline-primary btn-sm px-3"
+                      onClick={() => handleViewPDF(session._id)}
+                    >
+                      View
+                    </button>
+                    <button
+                      className="btn btn-outline-success btn-sm px-3"
+                      onClick={() => handleDownloadPDF(session._id)}
+                    >
+                      Download
+                    </button>
                   </div>
                 </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="col-md-6">
-          <h4>Snapshots</h4>
-          {snapshots.map(snapshot => (
-            <div key={snapshot._id} className="card mb-3">
-              <img src={`http://localhost:5000/${snapshot.image_path}`} className="card-img-top" alt="Snapshot" />
-              <div className="card-body">
-                <p>Timestamp: {new Date(snapshot.timestamp).toLocaleString()}</p>
-                <p>Violations: {snapshot.violations.join(', ') || 'None'}</p>
               </div>
             </div>
           ))}
         </div>
-      </div>
+      )}
     </div>
   );
 }

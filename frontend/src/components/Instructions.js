@@ -118,15 +118,68 @@ function Instructions() {
             </p>
           )}
 
-          <div style={{ marginTop: '2rem' }}>
+          <div style={{ marginTop: '2rem', marginLeft: '-2rem', marginRight: '-2rem', width: 'calc(100% + 4rem)', display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'nowrap' }}>
+            <button
+              onClick={testCameraAndMicrophone}
+              disabled={testingCamera}
+              style={{
+                flex: 1,
+                maxWidth: '150px',
+                background: testingCamera ? '#ccc' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '10px',
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                cursor: testingCamera ? 'not-allowed' : 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 10px rgba(99, 102, 241, 0.4)',
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+                fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+              }}
+            >
+              {testingCamera ? (
+                <>
+                  <span style={{
+                    display: 'inline-block',
+                    width: '0.8rem',
+                    height: '0.8rem',
+                    border: '2px solid #fff',
+                    borderTop: '2px solid transparent',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite',
+                    marginRight: '0.3rem'
+                  }}></span>
+                  Testing...
+                </>
+              ) : (
+                'Test Webcam & Microphone'
+              )}
+            </button>
             <button
               className="start-exam-btn"
               onClick={handleStartExam}
               disabled={cameraAccessible !== true}
               style={{
+                flex: 1,
+                maxWidth: '150px',
                 opacity: cameraAccessible !== true ? 0.5 : 1,
                 cursor: cameraAccessible !== true ? 'not-allowed' : 'pointer',
-                pointerEvents: cameraAccessible !== true ? 'none' : 'auto'
+                pointerEvents: cameraAccessible !== true ? 'none' : 'auto',
+                background: cameraAccessible === true ? 'linear-gradient(135deg, #28a745, #20c997)' : '#ccc',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '10px',
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 10px rgba(40, 167, 69, 0.4)',
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+                fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
               }}
             >
               Start Exam

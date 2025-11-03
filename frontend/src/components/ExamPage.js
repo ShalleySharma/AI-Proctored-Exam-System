@@ -27,6 +27,34 @@ function ExamPage() {
   const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
   const { add: toastAdd } = useToast();
 
+  const handleBeforeUnload = (e) => {
+    e.preventDefault();
+    e.returnValue = 'Refreshing or leaving this page will end your exam and submit it automatically. Are you sure?';
+
+    // Attempt to submit exam synchronously on page unload
+    if (sessionId) {
+      const finalScore = calculateScore();
+      const examResults = {
+        sessionId,
+        studentId: localStorage.getItem('studentId'),
+        examId: 'java-exam-001',
+        answers: selectedOptions,
+        score: finalScore,
+        totalQuestions: questions.length,
+        timeExpired: false,
+        completedAt: new Date().toISOString(),
+        violations,
+        violationCounts,
+        interrupted: true
+      };
+
+      // Use sendBeacon for reliable delivery during page unload
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(`${API_BASE}/api/exam/submit`, JSON.stringify(examResults));
+      }
+    }
+  };
+
   useEffect(() => {
     const startExam = async () => {
       if (examStarted) return; // Prevent multiple exam starts
@@ -54,6 +82,40 @@ function ExamPage() {
         if (savedCounts) {
           setViolationCounts(JSON.parse(savedCounts));
         }
+
+        // Add beforeunload listener to prevent refresh and auto-submit
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        // Request full screen mode
+        if (document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen().catch(err => {
+            console.warn('Failed to enter full screen:', err);
+            handleViolation('Failed to enter full screen mode');
+          });
+        } else if (document.documentElement.webkitRequestFullscreen) {
+          document.documentElement.webkitRequestFullscreen();
+        } else if (document.documentElement.msRequestFullscreen) {
+          document.documentElement.msRequestFullscreen();
+        }
+
+        // Listen for full screen changes
+        const handleFullscreenChange = () => {
+          if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+            handleViolation('Exited full screen mode');
+          }
+        };
+
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('msfullscreenchange', handleFullscreenChange);
+
+        // Cleanup function
+        return () => {
+          document.removeEventListener('fullscreenchange', handleFullscreenChange);
+          document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+          document.removeEventListener('msfullscreenchange', handleFullscreenChange);
+          window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
       } catch (err) {
         console.error('Failed to start exam:', err);
         toastAdd(`Failed to start exam: ${err.response?.data || err.message}. Please ensure the backend server is running.`);
@@ -361,142 +423,225 @@ function ExamPage() {
 
   return (
     <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      height: '100vh',
+      width: '100vw',
+      background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
       padding: '20px',
-      fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+      fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      overflow: 'auto'
     }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Header */}
+      <style>
+        {`
+          @keyframes glow {
+            0% { text-shadow: 3px 3px 6px rgba(0,0,0,0.7); }
+            50% { text-shadow: 3px 3px 12px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.5); }
+            100% { text-shadow: 3px 3px 6px rgba(0,0,0,0.7); }
+          }
+          @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+          }
+        `}
+      </style>
+      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+        {/* Top Section: Header and Video/Timer */}
         <div style={{
-          textAlign: 'center',
-          marginBottom: '20px',
-          color: '#fff',
-          fontSize: '2rem',
-          fontWeight: 'bold',
-          textShadow: '2px 2px 4px rgba(0,0,0,0.5)'
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '30px',
+          position: 'relative'
         }}>
-          <i className="bi bi-robot me-2"></i>
-          AI Proctoring Exam System
-        </div>
-
-        {/* Exam Title */}
-        <h2 style={{
-          textAlign: 'center',
-          color: '#fff',
-          marginBottom: '20px',
-          fontSize: '1.8rem',
-          fontWeight: '600',
-          textShadow: '1px 1px 3px rgba(0,0,0,0.3)'
-        }}>
-          Java Programming Certification Exam
-        </h2>
-
-        {/* Progress Bar */}
-        <div style={{
-          width: '100%',
-          background: 'rgba(255,255,255,0.2)',
-          borderRadius: '10px',
-          height: '12px',
-          marginBottom: '20px',
-          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
-        }}>
+          {/* Centered Test Heading */}
           <div style={{
-            width: `${((currentQuestionIndex + 1) / questions.length) * 100}%`,
-            background: 'linear-gradient(90deg, #007bff, #28a745)',
-            height: '100%',
-            borderRadius: '10px',
-            transition: 'width 0.5s ease-in-out',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-          }}></div>
-        </div>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-start' }}>
-          {/* Video Section */}
-          <div style={{
-            flex: '1',
-            minWidth: '300px',
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: '15px',
-            padding: '20px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-            backdropFilter: 'blur(10px)'
+            flex: 1,
+            textAlign: 'center',
+            color: '#fff',
+            fontSize: '3rem',
+            fontWeight: '900',
+            textShadow: '3px 3px 6px rgba(0,0,0,0.7)',
+            letterSpacing: '1px',
+            textTransform: 'uppercase',
+            background: 'linear-gradient(45deg, #fff, #f0f8ff)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            animation: 'glow 2s ease-in-out infinite alternate'
           }}>
-            <h4 style={{ textAlign: 'center', marginBottom: '20px', color: '#333' }}>Live Proctoring</h4>
-            <video ref={videoRef} autoPlay muted className="w-100 border mb-3" style={{ maxHeight: '250px', objectFit: 'cover' }} />
-            <canvas ref={canvasRef} style={{ display: 'none' }} />
-            <p className="text-center text-muted">Webcam is active. Snapshots are taken when violations are detected.</p>
-
-            {/* Add AdvancedSystemCompliance component here */}
-            <AdvancedSystemCompliance
-              onViolation={handleViolation}
-              isMonitoringActive={examStarted}
-              sessionId={sessionId}
-              onStreamReady={(stream) => {
-                if (videoRef.current) {
-                  // only set if different stream or srcObject not set
-                  if (videoRef.current.srcObject !== stream) {
-                    videoRef.current.srcObject = stream;
-                    // Ensure play is called safely
-                    const playPromise = videoRef.current.play();
-                    if (playPromise && playPromise.catch) {
-                      playPromise.catch(() => { /* ignore autoplay blocking */ });
-                    }
-                  }
-                }
-              }}
-            />
+            <i className="bi bi-robot me-3" style={{ fontSize: '3.2rem' }}></i>
+            Java Programming Certification Exam
           </div>
 
-          {/* Questions Section */}
+          {/* Top-Right: Timer and Circular Video */}
           <div style={{
-            flex: '2',
-            minWidth: '400px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '15px'
+          }}>
+            {/* Timer */}
+            <div style={{
+              background: timeLeft <= 60 ? 'linear-gradient(135deg, #dc3545, #ff6b6b)' : timeLeft <= 300 ? 'linear-gradient(135deg, #ffc107, #ffd60a)' : 'linear-gradient(135deg, #28a745, #20c997)',
+              color: 'white',
+              padding: '15px 25px',
+              borderRadius: '30px',
+              fontSize: '1.5rem',
+              fontWeight: '900',
+              boxShadow: '0 6px 20px rgba(0,0,0,0.3)',
+              animation: timeLeft <= 60 ? 'pulse 1s infinite' : 'none',
+              border: '3px solid rgba(255,255,255,0.3)',
+              textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
+              letterSpacing: '1px'
+            }}>
+              <i className="bi bi-clock-fill me-2" style={{ fontSize: '1.6rem' }}></i>
+              {formatTime(timeLeft)}
+            </div>
+
+            {/* Circular Video */}
+            <div style={{
+              width: '120px',
+              height: '120px',
+              borderRadius: '50%',
+              overflow: 'hidden',
+              border: '4px solid #fff',
+              boxShadow: '0 8px 25px rgba(0,0,0,0.3)',
+              position: 'relative'
+            }}>
+              <video
+                ref={videoRef}
+                autoPlay
+                muted
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover'
+                }}
+              />
+              <canvas ref={canvasRef} style={{ display: 'none' }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Circular Question Navigation */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          flexWrap: 'wrap',
+          gap: '10px',
+          marginBottom: '30px'
+        }}>
+          {questions.map((_, idx) => (
+            <div
+              key={idx}
+              onClick={() => setCurrentQuestionIndex(idx)}
+              style={{
+                width: '50px',
+                height: '50px',
+                borderRadius: '50%',
+                background: currentQuestionIndex === idx ? '#007bff' : selectedOptions[idx] ? '#28a745' : '#e9ecef',
+                color: currentQuestionIndex === idx || selectedOptions[idx] ? '#fff' : '#333',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+                border: currentQuestionIndex === idx ? '3px solid #fff' : 'none'
+              }}
+            >
+              {idx + 1}
+            </div>
+          ))}
+        </div>
+
+        {/* Main Content: Left (Exam Description) and Right (Questions) */}
+        <div style={{ display: 'flex', gap: '30px', alignItems: 'flex-start' }}>
+          {/* Left Side: Exam Description */}
+          <div style={{
+            flex: '1',
             background: 'rgba(255,255,255,0.95)',
             borderRadius: '15px',
-            padding: '20px',
+            padding: '30px',
             boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-            backdropFilter: 'blur(10px)'
+            backdropFilter: 'blur(10px)',
+            minHeight: '400px'
           }}>
-            {/* Timer above questions */}
-            <div style={{
-              textAlign: 'center',
-              marginBottom: '20px',
-              background: timeLeft <= 60 ? '#dc3545' : timeLeft <= 300 ? '#ffc107' : '#28a745',
-              color: 'white',
-              padding: '15px 30px',
-              borderRadius: '50px',
-              fontSize: '1.5rem',
-              fontWeight: 'bold',
-              display: 'inline-block',
-              boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-              animation: timeLeft <= 60 ? 'pulse 1s infinite' : 'none'
-            }}>
-              <i className="bi bi-clock me-2"></i>
-              Time Remaining: {formatTime(timeLeft)}
+            <h4 style={{ color: '#333', marginBottom: '20px', fontWeight: 'bold' }}>Exam Details</h4>
+            <div style={{ fontSize: '1.1rem', lineHeight: '1.6', color: '#555' }}>
+              <p><strong>Total Questions:</strong> {questions.length}</p>
+              <p><strong>Aptitude Questions:</strong> 15</p>
+              <p><strong>Technical Questions:</strong> 15</p>
+              <p><strong>Duration:</strong> 10 minutes</p>
+              <p><strong>Instructions:</strong> Answer all questions. Each question carries equal marks.</p>
             </div>
-            <h4 style={{ textAlign: 'center', marginBottom: '20px', color: '#333' }}>Exam Questions</h4>
+            <div style={{ marginTop: '20px' }}>
+              <h5 style={{ color: '#333', marginBottom: '15px' }}>Live Proctoring</h5>
+              <p className="text-muted">Webcam is active. Snapshots are taken when violations are detected.</p>
+              <AdvancedSystemCompliance
+                onViolation={handleViolation}
+                isMonitoringActive={examStarted}
+                sessionId={sessionId}
+                onStreamReady={(stream) => {
+                  if (videoRef.current) {
+                    if (videoRef.current.srcObject !== stream) {
+                      videoRef.current.srcObject = stream;
+                      const playPromise = videoRef.current.play();
+                      if (playPromise && playPromise.catch) {
+                        playPromise.catch(() => {});
+                      }
+                    }
+                  }
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Right Side: Questions and Options */}
+          <div style={{
+            flex: '2',
+            background: 'rgba(255,255,255,0.95)',
+            borderRadius: '15px',
+            padding: '30px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+            backdropFilter: 'blur(10px)',
+            minHeight: '400px'
+          }}>
+            <h4 style={{ color: '#333', marginBottom: '20px', textAlign: 'center' }}>Question {currentQuestionIndex + 1}</h4>
             <div style={{
               background: '#f8f9fa',
               borderRadius: '10px',
-              padding: '20px',
-              marginBottom: '20px'
+              padding: '25px',
+              marginBottom: '30px'
             }}>
-              <h5 style={{ marginBottom: '15px', color: '#495057' }}>Question {currentQuestionIndex + 1} of {questions.length}</h5>
-              <div style={{ marginBottom: '20px' }}>
-                <p style={{ whiteSpace: 'pre-line', fontSize: '1.1rem', lineHeight: '1.6', color: '#212529' }}>{questions[currentQuestionIndex].question}</p>
-              </div>
+              <p style={{
+                whiteSpace: 'pre-line',
+                fontSize: '1.2rem',
+                lineHeight: '1.6',
+                color: '#212529',
+                marginBottom: '20px'
+              }}>
+                {questions[currentQuestionIndex].question}
+              </p>
               <div>
                 {questions[currentQuestionIndex].options.map((option, idx) => (
-                  <div key={idx} style={{
-                    marginBottom: '10px',
-                    padding: '10px',
-                    border: selectedOptions[currentQuestionIndex] === option ? '2px solid #007bff' : '2px solid #dee2e6',
-                    borderRadius: '8px',
-                    background: selectedOptions[currentQuestionIndex] === option ? '#e7f3ff' : 'white',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }} onClick={() => handleOptionSelect(option)}>
+                  <div
+                    key={idx}
+                    style={{
+                      marginBottom: '15px',
+                      padding: '15px',
+                      border: selectedOptions[currentQuestionIndex] === option ? '3px solid #007bff' : '2px solid #dee2e6',
+                      borderRadius: '10px',
+                      background: selectedOptions[currentQuestionIndex] === option ? '#e7f3ff' : 'white',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      fontSize: '1.1rem'
+                    }}
+                    onClick={() => handleOptionSelect(option)}
+                  >
                     <input
                       type="radio"
                       name={`question-${currentQuestionIndex}`}
@@ -505,35 +650,74 @@ function ExamPage() {
                       onChange={() => handleOptionSelect(option)}
                       style={{ marginRight: '10px' }}
                     />
-                    <label htmlFor={`option-${idx}`} style={{ fontSize: '1rem', cursor: 'pointer', margin: 0 }}>
+                    <label htmlFor={`option-${idx}`} style={{ cursor: 'pointer', margin: 0 }}>
                       {option}
                     </label>
                   </div>
                 ))}
               </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <button style={{
-                background: '#6c757d',
-                color: 'white',
-                border: 'none',
-                padding: '10px 20px',
-                borderRadius: '5px',
-                cursor: currentQuestionIndex === 0 ? 'not-allowed' : 'pointer',
-                opacity: currentQuestionIndex === 0 ? 0.5 : 1
-              }} onClick={handlePrevious} disabled={currentQuestionIndex === 0}>
-                <i className="bi bi-arrow-left me-2"></i>Previous
+
+            {/* Bottom Buttons */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: '15px'
+            }}>
+              <button
+                style={{
+                  flex: 1,
+                  background: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  padding: '15px',
+                  borderRadius: '10px',
+                  fontSize: '1.1rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to quit the exam? Your progress will be lost.')) {
+                    navigate('/student-dashboard');
+                  }
+                }}
+              >
+                <i className="bi bi-x-circle me-2"></i>Quit
               </button>
-              <button style={{
-                background: '#007bff',
-                color: 'white',
-                border: 'none',
-                padding: '10px 20px',
-                borderRadius: '5px',
-                cursor: 'pointer'
-              }} onClick={handleNext}>
-                {currentQuestionIndex === questions.length - 1 ? 'Submit Exam' : 'Next'}
-                <i className="bi bi-arrow-right ms-2"></i>
+              <button
+                style={{
+                  flex: 1,
+                  background: '#ffc107',
+                  color: 'white',
+                  border: 'none',
+                  padding: '15px',
+                  borderRadius: '10px',
+                  fontSize: '1.1rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+                onClick={handleNext}
+              >
+                <i className="bi bi-save me-2"></i>Save & Next
+              </button>
+              <button
+                style={{
+                  flex: 1,
+                  background: '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  padding: '15px',
+                  borderRadius: '10px',
+                  fontSize: '1.1rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+                onClick={handleSubmitExam}
+              >
+                <i className="bi bi-check-circle me-2"></i>Submit
               </button>
             </div>
           </div>

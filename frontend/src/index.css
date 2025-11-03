@@ -1,12 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --primary-color: #6366f1;
-  --secondary-color: #8b5cf6;
-  --accent-color: #f59e0b;
-  --dark-color: #1f2937;
-  --light-color: #f9fafb;
-  --gradient: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  --primary-color: #10b981; /* Green for primary elements */
+  --secondary-color: #059669; /* Darker green for hover/secondary */
+  --accent-color: #6b7280; /* Grey for accent elements like teacher button */
+  --dark-color: #374151; /* Grey for text and dark elements */
+  --light-color: #ffffff; /* White for backgrounds */
+  --gradient: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); /* Green gradient */
 }
 
 * {

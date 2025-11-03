@@ -1,3 +1,6 @@
-- [x] Add autocomplete="current-password" to password input in Signup.js
-- [x] Improve camera error handling in startCamera function in Signup.js
-- [ ] Test the signup page to verify fixes
+# TODO: Update StudentLogin Page to Horizontal Layout
+
+## Tasks
+- [x] Update StudentLogin.js: Remove sectioned layout, arrange right panel horizontally with form on left and camera on right.
+- [x] Update StudentLogin.css: Remove section-related styles, add horizontal flex layout for right panel, adjust padding to match TeacherLogin.css.
+- [x] Test the updated StudentLogin page for functionality and layout.
