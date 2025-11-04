@@ -129,16 +129,16 @@ AI-Proctored-Exam-System/
 │   │   ├── Session.js
 │   │   ├── Snapshot.js
 │   │   └── Student.js
-│   │   ├── routes/
-│   │   │   ├── auth.js
-│   │   │   └── exam.js
-│   │   ├── uploads/
-│   │   │   ├── login/
-│   │   │   ├── signup/
-│   │   │   ├── snapshots/
-│   │   │   └── violations/
-│   │   ├── package.json
-│   │   └── server.js
+│   ├── routes/
+│   │   ├── auth.js
+│   │   └── exam.js
+│   ├── uploads/
+│   │   ├── login/
+│   │   ├── signup/
+│   │   ├── snapshots/
+│   │   └── violations/
+│   ├── package.json
+│   └── server.js
 ├── frontend/
 │   ├── public/
 │   │   ├── images/
@@ -147,11 +147,11 @@ AI-Proctored-Exam-System/
 │   │   ├── components/
 │   │   │   ├── Home.js
 │   │   │   ├── Login.js
-│   │   ├── Signup.js
-│   │   ├── ExamPage.js
-│   │   ├── InstructorDashboard.js
-│   │   ├── StudentDashboard.js
-│   │   └── ...
+│   │   │   ├── Signup.js
+│   │   │   ├── ExamPage.js
+│   │   │   ├── InstructorDashboard.js
+│   │   │   ├── StudentDashboard.js
+│   │   │   └── ...
 │   │   ├── App.js
 │   │   └── ...
 │   └── package.json
@@ -313,16 +313,16 @@ AI-Proctored-Exam-System/
 │   │   ├── Session.js
 │   │   ├── Snapshot.js
 │   │   └── Student.js
-│   │   ├── routes/
-│   │   │   ├── auth.js
-│   │   │   └── exam.js
-│   │   ├── uploads/
-│   │   │   ├── login/
-│   │   │   ├── signup/
-│   │   │   ├── snapshots/
-│   │   │   └── violations/
-│   │   ├── package.json
-│   │   └── server.js
+│   ├── routes/
+│   │   ├── auth.js
+│   │   └── exam.js
+│   ├── uploads/
+│   │   ├── login/
+│   │   ├── signup/
+│   │   ├── snapshots/
+│   │   └── violations/
+│   ├── package.json
+│   └── server.js
 ├── frontend/
 │   ├── public/
 │   │   ├── images/
