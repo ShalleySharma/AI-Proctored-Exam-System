@@ -6,7 +6,7 @@ function Login() {
   const navigate = useNavigate();
 
   const handleStudentLogin = () => {
-    navigate('/student-signin');
+    navigate('/student-signup');
   };
 
   const handleTeacherLogin = () => {

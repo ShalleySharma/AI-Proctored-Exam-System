@@ -644,6 +644,18 @@
   display: none;
 }
 
+.student-login-api-error {
+  background: #fee;
+  color: #c33;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid #fcc;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .student-login-card {

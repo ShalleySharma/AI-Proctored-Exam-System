@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import './StudentSignin.css';
+import './StudentSignup.css';
 
-function StudentSignin() {
+function StudentSignup() {
   const [formData, setFormData] = useState({ name: '', roll_no: '', course: '', year: '', email: '', password: '' });
   const [photo, setPhoto] = useState(null);
   const [capturedImage, setCapturedImage] = useState(null);
@@ -62,6 +62,53 @@ function StudentSignin() {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    // Clear error for this field when user starts typing
+    if (errors[e.target.name]) {
+      setErrors({ ...errors, [e.target.name]: '' });
+    }
+  };
+
+  const validateField = (name, value) => {
+    let error = '';
+    switch (name) {
+      case 'name':
+        if (!value.trim()) error = 'Name is required';
+        break;
+      case 'roll_no':
+        if (!value.trim()) error = 'Roll No is required';
+        break;
+      case 'course':
+        if (!value.trim()) error = 'Course is required';
+        break;
+      case 'year':
+        if (!value.trim()) error = 'Year is required';
+        break;
+      case 'email':
+        if (!value.trim()) {
+          error = 'Email is required';
+        } else if (!/@gmail\.com$/.test(value)) {
+          error = 'Email must be a valid Gmail address (e.g., example@gmail.com)';
+        }
+        break;
+      case 'password':
+        if (!value) {
+          error = 'Password is required';
+        } else if (value.length < 8) {
+          error = 'Password must be at least 8 characters long';
+        } else if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value)) {
+          error = 'Password must contain at least one special character';
+        }
+        break;
+      default:
+        break;
+    }
+    return error;
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    const error = validateField(name, value);
+    setErrors({ ...errors, [name]: error });
   };
 
   const validateForm = () => {
@@ -99,7 +146,7 @@ function StudentSignin() {
     setIsLoading(true);
     const data = new FormData();
     data.append('name', formData.name);
-    data.append('rollNo', formData.rollNo);
+    data.append('rollNo', formData.roll_no);
     data.append('course', formData.course);
     data.append('year', formData.year);
     data.append('email', formData.email);
@@ -132,7 +179,7 @@ function StudentSignin() {
           </div>
         </div>
         <div className="student-signup-right">
-          <h2 className="student-signup-title">Student Sign In</h2>
+          <h2 className="student-signup-title">Student Sign Up</h2>
           <div className="student-signup-content">
             <form className="student-signup-form" onSubmit={handleSubmit} autoComplete="off">
               <input type="hidden" autoComplete="username" />
@@ -143,6 +190,7 @@ function StudentSignin() {
                   placeholder="Full Name"
                   value={formData.name}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   required
                   className={`student-signup-input ${errors.name ? 'error' : ''}`}
                   autoComplete="off"
@@ -156,6 +204,7 @@ function StudentSignin() {
                   placeholder="Roll No"
                   value={formData.roll_no}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   required
                   className={`student-signup-input ${errors.roll_no ? 'error' : ''}`}
                   autoComplete="off"
@@ -169,6 +218,7 @@ function StudentSignin() {
                   placeholder="Course"
                   value={formData.course}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   required
                   className={`student-signup-input ${errors.course ? 'error' : ''}`}
                   autoComplete="off"
@@ -182,23 +232,28 @@ function StudentSignin() {
                   placeholder="Year"
                   value={formData.year}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   required
                   className={`student-signup-input ${errors.year ? 'error' : ''}`}
                   autoComplete="off"
                 />
                 {errors.year && <span className="student-signup-error">{errors.year}</span>}
               </div>
-              <div className="student-signup-input-group email-group">
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="Email Address"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  className={`student-signup-input ${errors.email ? 'error' : ''}`}
-                  autoComplete="off"
-                />
+              <div className="student-signup-input-group">
+                <div className="student-signup-password">
+                  <input
+                    type="email"
+                    name="email"
+                    placeholder="Email Address"
+                    value={formData.email}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    required
+                    className={`student-signup-input ${errors.email ? 'error' : ''}`}
+                    autoComplete="off"
+                  />
+                  <i className="bi bi-envelope student-signup-password-icon"></i>
+                </div>
                 {errors.email && <span className="student-signup-error">{errors.email}</span>}
               </div>
               <div className="student-signup-input-group">
@@ -209,6 +264,7 @@ function StudentSignin() {
                     placeholder="Password"
                     value={formData.password}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     required
                     className={`student-signup-input ${errors.password ? 'error' : ''}`}
                     autoComplete="new-password"
@@ -235,7 +291,7 @@ function StudentSignin() {
                 ) : (
                   <>
                     <i className="bi bi-person-plus me-2"></i>
-                    Sign In as Student
+                    Sign Up as Student
                   </>
                 )}
               </button>
@@ -326,4 +382,4 @@ function StudentSignin() {
   );
 }
 
-export default StudentSignin;
+export default StudentSignup;

@@ -4,7 +4,7 @@ import Home from "./components/Home";
 
 import GetStarted from "./components/GetStarted";
 import StudentLogin from "./components/Login/Student/StudentLogin";
-import StudentSignin from "./components/Signin/Student/StudentSignin";
+import StudentSignup from "./components/Signin/Student/StudentSignup";
 import TeacherLogin from "./components/Login/Teacher/TeacherLogin";
 import Instructions from "./components/Instructions";
 import ExamPage from "./components/ExamPage";
@@ -20,7 +20,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<GetStarted />} />
         <Route path="/student-login" element={<StudentLogin />} />
-        <Route path="/student-signin" element={<StudentSignin />} />
+        <Route path="/student-signup" element={<StudentSignup />} />
         <Route path="/teacher-login" element={<TeacherLogin />} />
         <Route path="/teacher-signin" element={<TeacherSignin />} />
         <Route path="/instructions" element={<Instructions />} />

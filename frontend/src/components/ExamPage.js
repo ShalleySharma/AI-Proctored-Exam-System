@@ -102,6 +102,17 @@ function ExamPage() {
         const handleFullscreenChange = () => {
           if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
             handleViolation('Exited full screen mode');
+            alert('Full screen removed! This is a violation. Please return to full screen mode to continue the exam.');
+            // Attempt to re-enter full screen if possible
+            setTimeout(() => {
+              if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(() => {});
+              } else if (document.documentElement.webkitRequestFullscreen) {
+                document.documentElement.webkitRequestFullscreen();
+              } else if (document.documentElement.msRequestFullscreen) {
+                document.documentElement.msRequestFullscreen();
+              }
+            }, 1000);
           }
         };
 
@@ -162,14 +173,29 @@ function ExamPage() {
       // Send results to backend
       await axios.post(`${API_BASE}/api/exam/submit`, examResults);
 
-      // Navigate to dashboard
+      // Stop camera and microphone
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject;
+        stream.getTracks().forEach(track => track.stop());
+        videoRef.current.srcObject = null;
+      }
+
+      // Logout and navigate to home page
       toastAdd('Time is up! Your exam has been submitted automatically.');
-      navigate('/student-dashboard');
+      localStorage.clear();
+      navigate('/');
     } catch (error) {
       console.error('Failed to submit exam on timeout:', error);
-      // Still navigate to dashboard even if backend submission fails
+      // Stop camera and microphone even on error
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject;
+        stream.getTracks().forEach(track => track.stop());
+        videoRef.current.srcObject = null;
+      }
+      // Still logout and navigate to home page even if backend submission fails
       toastAdd('Time is up! Your exam has been submitted automatically. (Note: There was an issue saving to server)');
-      navigate('/student-dashboard');
+      localStorage.clear();
+      navigate('/');
     }
   };
 
@@ -394,14 +420,29 @@ function ExamPage() {
       // Send results to backend
       await axios.post(`${API_BASE}/api/exam/submit`, examResults);
 
-      // Navigate to dashboard
+      // Stop camera and microphone
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject;
+        stream.getTracks().forEach(track => track.stop());
+        videoRef.current.srcObject = null;
+      }
+
+      // Logout and navigate to home page
       toastAdd('Exam submitted successfully!');
-      navigate('/student-dashboard');
+      localStorage.clear();
+      navigate('/');
     } catch (error) {
       console.error('Failed to submit exam:', error);
-      // Still navigate to dashboard even if backend submission fails
+      // Stop camera and microphone even on error
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject;
+        stream.getTracks().forEach(track => track.stop());
+        videoRef.current.srcObject = null;
+      }
+      // Still logout and navigate to home page even if backend submission fails
       toastAdd('Exam submitted! (Note: There was an issue saving to server)');
-      navigate('/student-dashboard');
+      localStorage.clear();
+      navigate('/');
     }
   };
 
@@ -427,6 +468,7 @@ function ExamPage() {
       width: '100vw',
       background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
       padding: '20px',
+      paddingTop: '80px',
       fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
       position: 'fixed',
       top: 0,
@@ -457,24 +499,9 @@ function ExamPage() {
           position: 'relative'
         }}>
           {/* Centered Test Heading */}
-          <div style={{
-            flex: 1,
-            textAlign: 'center',
-            color: '#fff',
-            fontSize: '3rem',
-            fontWeight: '900',
-            textShadow: '3px 3px 6px rgba(0,0,0,0.7)',
-            letterSpacing: '1px',
-            textTransform: 'uppercase',
-            background: 'linear-gradient(45deg, #fff, #f0f8ff)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            animation: 'glow 2s ease-in-out infinite alternate'
-          }}>
-            <i className="bi bi-robot me-3" style={{ fontSize: '3.2rem' }}></i>
+          <h1 className="display-5 fw-bold mb-4" style={{ color: '#333', textAlign: 'center', flex: 1, margin: '0' }}>
             Java Programming Certification Exam
-          </div>
+          </h1>
 
           {/* Top-Right: Timer and Circular Video */}
           <div style={{
@@ -541,8 +568,8 @@ function ExamPage() {
                 width: '50px',
                 height: '50px',
                 borderRadius: '50%',
-                background: currentQuestionIndex === idx ? '#007bff' : selectedOptions[idx] ? '#28a745' : '#e9ecef',
-                color: currentQuestionIndex === idx || selectedOptions[idx] ? '#fff' : '#333',
+                background: currentQuestionIndex === idx ? '#ffffff' : selectedOptions[idx] ? '#28a745' : '#6c757d',
+                color: currentQuestionIndex === idx ? '#333' : selectedOptions[idx] ? '#fff' : '#fff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -550,7 +577,7 @@ function ExamPage() {
                 cursor: 'pointer',
                 transition: 'all 0.3s ease',
                 boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
-                border: currentQuestionIndex === idx ? '3px solid #fff' : 'none'
+                border: currentQuestionIndex === idx ? '3px solid #28a745' : 'none'
               }}
             >
               {idx + 1}
@@ -667,7 +694,7 @@ function ExamPage() {
               <button
                 style={{
                   flex: 1,
-                  background: '#dc3545',
+                  background: '#6c757d',
                   color: 'white',
                   border: 'none',
                   padding: '15px',
@@ -688,7 +715,7 @@ function ExamPage() {
               <button
                 style={{
                   flex: 1,
-                  background: '#ffc107',
+                  background: '#6c757d',
                   color: 'white',
                   border: 'none',
                   padding: '15px',

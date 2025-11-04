@@ -40,7 +40,7 @@ function Instructions() {
           <h2 className="instructions-heading">Instructions</h2>
         </div>
         <div style={{ padding: '1rem 2rem', textAlign: 'left' }}>
-          <h5 style={{ color: '#007bff', fontWeight: '600', marginBottom: '1rem' }}>Important Rules for Online Exam</h5>
+          <h5 style={{ color: '#28a745', fontWeight: '600', marginBottom: '1rem' }}>Important Rules for Online Exam</h5>
           <ol style={{ paddingLeft: '1.2rem' }}>
             <li><strong>Device and Internet:</strong> Ensure your device is fully charged or connected to a reliable power source and has a stable, high-speed internet connection for the entire duration of the exam.</li>
             <li><strong>Webcam and Microphone:</strong> Keep your webcam and microphone turned on at all times. These are mandatory for real-time monitoring during the exam.</li>
@@ -55,45 +55,7 @@ function Instructions() {
 
         {/* Camera and Microphone Test Section */}
         <div className="test-section" style={{ padding: '1rem 2rem', textAlign: 'center', borderTop: '1px solid #ddd', marginTop: '1rem' }}>
-          <h5 style={{ color: '#6366f1', marginBottom: '1rem', fontWeight: '700', fontSize: '1.5rem' }}>Test Your Setup</h5>
-          <button
-            onClick={testCameraAndMicrophone}
-            disabled={testingCamera}
-            style={{
-              background: testingCamera ? '#ccc' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '50px',
-              padding: '0.7rem 1.8rem',
-              fontSize: '1rem',
-              fontWeight: '700',
-              cursor: testingCamera ? 'not-allowed' : 'pointer',
-              transition: 'all 0.3s ease',
-              boxShadow: '0 15px 30px rgba(99, 102, 241, 0.4)',
-              margin: '0.5rem',
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase',
-              fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
-            }}
-          >
-            {testingCamera ? (
-              <>
-                <span style={{
-                  display: 'inline-block',
-                  width: '1rem',
-                  height: '1rem',
-                  border: '2px solid #fff',
-                  borderTop: '2px solid transparent',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite',
-                  marginRight: '0.5rem'
-                }}></span>
-                Testing...
-              </>
-            ) : (
-              'Test Webcam & Microphone'
-            )}
-          </button>
+          <h5 style={{ color: '#28a745', marginBottom: '1rem', fontWeight: '700', fontSize: '1.5rem' }}>Test Your Setup</h5>
 
           {cameraAccessible !== null && (
             <div style={{
@@ -118,39 +80,42 @@ function Instructions() {
             </p>
           )}
 
-          <div style={{ marginTop: '2rem', marginLeft: '-2rem', marginRight: '-2rem', width: 'calc(100% + 4rem)', display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'nowrap' }}>
+          <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
             <button
               onClick={testCameraAndMicrophone}
               disabled={testingCamera}
               style={{
-                flex: 1,
-                maxWidth: '150px',
-                background: testingCamera ? '#ccc' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                width: '250px',
+                background: testingCamera ? '#6c757d' : 'linear-gradient(135deg, #28a745, #20c997)',
                 color: 'white',
                 border: 'none',
-                borderRadius: '8px',
-                padding: '10px',
-                fontSize: '0.9rem',
-                fontWeight: '600',
+                borderRadius: '25px',
+                padding: '12px 20px',
+                fontSize: '1rem',
+                fontWeight: '700',
                 cursor: testingCamera ? 'not-allowed' : 'pointer',
                 transition: 'all 0.3s ease',
-                boxShadow: '0 4px 10px rgba(99, 102, 241, 0.4)',
+                boxShadow: '0 6px 15px rgba(40, 167, 69, 0.5)',
                 letterSpacing: '0.05em',
                 textTransform: 'uppercase',
-                fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+                fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                transform: testingCamera ? 'scale(0.98)' : 'scale(1)',
+                outline: 'none'
               }}
+              onMouseEnter={(e) => !testingCamera && (e.target.style.transform = 'scale(1.05)')}
+              onMouseLeave={(e) => !testingCamera && (e.target.style.transform = 'scale(1)')}
             >
               {testingCamera ? (
                 <>
                   <span style={{
                     display: 'inline-block',
-                    width: '0.8rem',
-                    height: '0.8rem',
+                    width: '1rem',
+                    height: '1rem',
                     border: '2px solid #fff',
                     borderTop: '2px solid transparent',
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite',
-                    marginRight: '0.3rem'
+                    marginRight: '0.5rem'
                   }}></span>
                   Testing...
                 </>
@@ -163,24 +128,27 @@ function Instructions() {
               onClick={handleStartExam}
               disabled={cameraAccessible !== true}
               style={{
-                flex: 1,
-                maxWidth: '150px',
+                width: '250px',
                 opacity: cameraAccessible !== true ? 0.5 : 1,
                 cursor: cameraAccessible !== true ? 'not-allowed' : 'pointer',
                 pointerEvents: cameraAccessible !== true ? 'none' : 'auto',
-                background: cameraAccessible === true ? 'linear-gradient(135deg, #28a745, #20c997)' : '#ccc',
+                background: cameraAccessible === true ? 'linear-gradient(135deg, #28a745, #20c997)' : '#6c757d',
                 color: 'white',
                 border: 'none',
-                borderRadius: '8px',
-                padding: '10px',
-                fontSize: '0.9rem',
-                fontWeight: '600',
+                borderRadius: '25px',
+                padding: '12px 20px',
+                fontSize: '1rem',
+                fontWeight: '700',
                 transition: 'all 0.3s ease',
-                boxShadow: '0 4px 10px rgba(40, 167, 69, 0.4)',
+                boxShadow: '0 6px 15px rgba(40, 167, 69, 0.5)',
                 letterSpacing: '0.05em',
                 textTransform: 'uppercase',
-                fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+                fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                transform: cameraAccessible === true ? 'scale(1)' : 'scale(0.98)',
+                outline: 'none'
               }}
+              onMouseEnter={(e) => cameraAccessible === true && (e.target.style.transform = 'scale(1.05)')}
+              onMouseLeave={(e) => cameraAccessible === true && (e.target.style.transform = 'scale(1)')}
             >
               Start Exam
             </button>

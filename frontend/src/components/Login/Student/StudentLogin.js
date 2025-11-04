@@ -11,6 +11,7 @@ function StudentLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [errors, setErrors] = useState({});
+  const [apiError, setApiError] = useState('');
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const navigate = useNavigate();
@@ -20,6 +21,32 @@ function StudentLogin() {
       videoRef.current.srcObject = stream;
     }
   }, [stream]);
+
+  // Clear form fields on component mount to prevent autofill
+  useEffect(() => {
+    setFormData({ email: '', password: '', testId: '' });
+    // Force clear any browser autofill with multiple attempts
+    const clearInputs = () => {
+      const emailInput = document.querySelector('input[name="email"]');
+      const passwordInput = document.querySelector('input[name="password"]');
+      const testIdInput = document.querySelector('input[name="testId"]');
+      if (emailInput) {
+        emailInput.value = '';
+        emailInput.defaultValue = '';
+      }
+      if (passwordInput) {
+        passwordInput.value = '';
+        passwordInput.defaultValue = '';
+      }
+      if (testIdInput) {
+        testIdInput.value = '';
+        testIdInput.defaultValue = '';
+      }
+    };
+    setTimeout(clearInputs, 100);
+    setTimeout(clearInputs, 500);
+    setTimeout(clearInputs, 1000);
+  }, []);
 
   const startCamera = async () => {
     try {
@@ -73,10 +100,6 @@ function StudentLogin() {
     }
     if (!formData.password) {
       newErrors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters long';
-    } else if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password)) {
-      newErrors.password = 'Password must contain at least one special character';
     }
     if (!formData.testId) newErrors.testId = 'Test ID is required';
     if (!capturedImage) newErrors.photo = 'Photo verification is required';
@@ -109,7 +132,8 @@ function StudentLogin() {
       localStorage.setItem('studentId', res.data.studentId);
       navigate('/instructions');
     } catch (err) {
-      alert(err.response?.data?.msg || 'Login failed');
+      const errorMessage = err.response?.data?.msg || 'Login failed';
+      alert(errorMessage); // Show error as alert instead of inline message
     } finally {
       setIsLoading(false);
     }
@@ -128,18 +152,24 @@ function StudentLogin() {
         <div className="student-login-right">
           <h2 className="student-login-title">Student Login</h2>
           <div className="student-login-content">
-            <form className="student-login-form" onSubmit={handleSubmit}>
+            <form className="student-login-form" onSubmit={handleSubmit} autoComplete="off" data-form="login">
+              <input type="hidden" autoComplete="username" />
+              <input type="hidden" autoComplete="new-password" />
+              {apiError && <div className="student-login-api-error">{apiError}</div>}
               <div className="student-login-input-group">
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="Email Address"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  className={`student-login-input ${errors.email ? 'error' : ''}`}
-                  autoComplete="off"
-                />
+                <div className="student-login-password">
+                  <input
+                    type="email"
+                    name="email"
+                    placeholder="Email Address"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    className={`student-login-input ${errors.email ? 'error' : ''}`}
+                    autoComplete="off"
+                  />
+                  <i className="bi bi-envelope student-login-password-icon"></i>
+                </div>
                 {errors.email && <span className="student-login-error">{errors.email}</span>}
               </div>
               <div className="student-login-input-group">
@@ -164,22 +194,25 @@ function StudentLogin() {
                 </div>
               </div>
               <div className="student-login-input-group">
-                <input
-                  type="text"
-                  name="testId"
-                  placeholder="Exam ID"
-                  value={formData.testId}
-                  onChange={handleChange}
-                  required
-                  className={`student-login-input ${errors.testId ? 'error' : ''}`}
-                  autoComplete="off"
-                />
+                <div className="student-login-password">
+                  <input
+                    type="text"
+                    name="testId"
+                    placeholder="Exam ID"
+                    value={formData.testId}
+                    onChange={handleChange}
+                    required
+                    className={`student-login-input ${errors.testId ? 'error' : ''}`}
+                    autoComplete="off"
+                  />
+                  <i className="bi bi-card-text student-login-password-icon"></i>
+                </div>
                 {errors.testId && <span className="student-login-error">{errors.testId}</span>}
               </div>
               <button
                 type="submit"
                 className="student-login-submit-btn"
-                disabled={!capturedImage || isLoading}
+                disabled={isLoading}
               >
                 {isLoading ? (
                   <>
@@ -270,6 +303,7 @@ function StudentLogin() {
 
               <canvas ref={canvasRef} className="student-login-canvas" />
             </div>
+            {errors.photo && <span className="student-login-error" style={{ display: 'block', marginTop: '10px' }}>{errors.photo}</span>}
           </div>
           <p className="student-login-footer">
             Don't have an account? <a href="/student-signup">Sign up here</a>

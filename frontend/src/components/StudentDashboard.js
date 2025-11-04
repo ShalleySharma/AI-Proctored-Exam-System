@@ -4,7 +4,8 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 function StudentDashboard() {
-  const [examResults, setExamResults] = useState(null);
+  const [examResults, setExamResults] = useState([]);
+  const [selectedResult, setSelectedResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const reportRef = useRef(null);
@@ -64,7 +65,7 @@ function StudentDashboard() {
     );
   }
 
-  if (!examResults) {
+  if (!examResults || examResults.length === 0) {
     return (
       <div className="container mt-5 text-center">
         <h2>No Exam Results Found</h2>
@@ -73,7 +74,93 @@ function StudentDashboard() {
     );
   }
 
-  const totalViolations = examResults.violations ? Object.values(examResults.violations).reduce((a, b) => a + b, 0) : 0;
+  // If no specific result is selected, show the list of exams
+  if (!selectedResult) {
+    return (
+      <div className="container-fluid mt-4" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh', paddingBottom: '50px' }}>
+        <div className="container">
+          <div className="text-center mb-4">
+          <h1 className="text-grey mb-3" style={{ fontWeight: 'bold', textShadow: '2px 2px 4px rgba(0,0,0,0.3)', color: '#6c757d' }}>
+            📊 Dashboard
+          </h1>
+          </div>
+
+          <div className="row">
+            {examResults.map((result, index) => {
+              const examDate = new Date(result.completedAt);
+              const dayName = examDate.toLocaleDateString('en-US', { weekday: 'long' });
+              const totalViolations = result.violations ? Object.values(result.violations).reduce((a, b) => a + b, 0) : 0;
+
+              return (
+                <div key={index} className="col-md-6 col-lg-4 mb-4">
+                  <div
+                    className="card shadow-lg border-0"
+                    style={{
+                      borderRadius: '20px',
+                      overflow: 'hidden',
+                      cursor: 'pointer',
+                      transition: 'transform 0.3s ease, box-shadow 0.3s ease'
+                    }}
+                    onClick={() => setSelectedResult(result)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-5px)';
+                      e.currentTarget.style.boxShadow = '0 15px 35px rgba(0,0,0,0.2)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.1)';
+                    }}
+                  >
+                    <div className="card-header text-white text-center py-3" style={{ background: 'linear-gradient(45deg, #1e3c72, #2a5298)' }}>
+                      <h5 className="mb-0">Java Programming Certification Exam</h5>
+                    </div>
+                    <div className="card-body text-center p-4">
+                      <div className="mb-3">
+                        <h3 className="text-primary mb-1">{result.score}/{result.totalQuestions}</h3>
+                        <p className="text-muted mb-0">{result.percentage}%</p>
+                      </div>
+
+                      <div className="row mb-3">
+                        <div className="col-6">
+                          <small className="text-muted d-block">Date</small>
+                          <strong>{examDate.toLocaleDateString()}</strong>
+                        </div>
+                        <div className="col-6">
+                          <small className="text-muted d-block">Day</small>
+                          <strong>{dayName}</strong>
+                        </div>
+                      </div>
+
+                      <div className="mb-3">
+                        <small className="text-muted d-block">Status</small>
+                        <span className={`badge ${result.timeExpired ? 'bg-danger' : 'bg-success'} fs-6`}>
+                          {result.timeExpired ? 'Time Expired' : 'Completed'}
+                        </span>
+                      </div>
+
+                      <div className="mb-3">
+                        <small className="text-muted d-block">Violations</small>
+                        <span className={`badge ${totalViolations > 0 ? 'bg-warning' : 'bg-success'} fs-6`}>
+                          {totalViolations}
+                        </span>
+                      </div>
+
+                      <button className="btn btn-success btn-sm w-100" style={{ backgroundColor: '#28a745', borderColor: '#28a745' }}>
+                        View Details
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show detailed view for selected result
+  const totalViolations = selectedResult.violations ? Object.values(selectedResult.violations).reduce((a, b) => a + b, 0) : 0;
 
   const generatePDF = async () => {
     setPdfGenerating(true);
@@ -113,8 +200,8 @@ function StudentDashboard() {
       pdf.setTextColor(40, 40, 40);
       pdf.text('Java Programming Certification Exam', 105, 20, { align: 'center' });
       pdf.setFontSize(12);
-      pdf.text(`Exam Date: ${new Date(examResults.completedAt).toLocaleDateString()}`, 105, 35, { align: 'center' });
-      pdf.text(`Score: ${examResults.score}/${examResults.totalQuestions} (${examResults.percentage}%)`, 105, 45, { align: 'center' });
+      pdf.text(`Exam Date: ${new Date(selectedResult.completedAt).toLocaleDateString()}`, 105, 35, { align: 'center' });
+      pdf.text(`Score: ${selectedResult.score}/${selectedResult.totalQuestions} (${selectedResult.percentage}%)`, 105, 45, { align: 'center' });
 
       pdf.save(`Java_Exam_Report_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (error) {
@@ -161,8 +248,8 @@ function StudentDashboard() {
       pdf.setTextColor(40, 40, 40);
       pdf.text('Java Programming Certification Exam', 105, 20, { align: 'center' });
       pdf.setFontSize(12);
-      pdf.text(`Exam Date: ${new Date(examResults.completedAt).toLocaleDateString()}`, 105, 35, { align: 'center' });
-      pdf.text(`Score: ${examResults.score}/${examResults.totalQuestions} (${examResults.percentage}%)`, 105, 45, { align: 'center' });
+      pdf.text(`Exam Date: ${new Date(selectedResult.completedAt).toLocaleDateString()}`, 105, 35, { align: 'center' });
+      pdf.text(`Score: ${selectedResult.score}/${selectedResult.totalQuestions} (${selectedResult.percentage}%)`, 105, 45, { align: 'center' });
 
       const pdfBlob = pdf.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
@@ -228,7 +315,7 @@ function StudentDashboard() {
                   width: '200px',
                   height: '200px',
                   borderRadius: '50%',
-                  background: `conic-gradient(${examResults.percentage >= 70 ? '#28a745' : examResults.percentage >= 50 ? '#ffc107' : '#dc3545'} ${examResults.percentage * 3.6}deg, #e9ecef 0deg)`,
+                  background: `conic-gradient(${selectedResult.percentage >= 70 ? '#28a745' : selectedResult.percentage >= 50 ? '#ffc107' : '#dc3545'} ${selectedResult.percentage * 3.6}deg, #e9ecef 0deg)`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -245,20 +332,20 @@ function StudentDashboard() {
                     alignItems: 'center',
                     justifyContent: 'center'
                   }}>
-                    <h1 className="text-primary mb-0" style={{ fontSize: '3rem', fontWeight: 'bold' }}>{examResults.score}</h1>
-                    <p className="text-muted mb-0">out of {examResults.totalQuestions}</p>
+                    <h1 className="text-primary mb-0" style={{ fontSize: '3rem', fontWeight: 'bold' }}>{selectedResult.score}</h1>
+                    <p className="text-muted mb-0">out of {selectedResult.totalQuestions}</p>
                   </div>
                 </div>
-                <h2 className="text-muted mb-4">{examResults.percentage}% Accuracy</h2>
+                <h2 className="text-muted mb-4">{selectedResult.percentage}% Accuracy</h2>
 
                 <div className="row mb-4">
                   <div className="col-md-4">
                     <div className="card bg-light border-0" style={{ borderRadius: '15px' }}>
                       <div className="card-body">
-                        <i className={`bi ${examResults.timeExpired ? 'bi-clock-history text-danger' : 'bi-check-circle-fill text-success'} fs-1 mb-2`}></i>
+                        <i className={`bi ${selectedResult.timeExpired ? 'bi-clock-history text-danger' : 'bi-check-circle-fill text-success'} fs-1 mb-2`}></i>
                         <h6>Status</h6>
-                        <p className={`mb-0 fw-bold ${examResults.timeExpired ? 'text-danger' : 'text-success'}`}>
-                          {examResults.timeExpired ? 'Time Expired' : 'Completed'}
+                        <p className={`mb-0 fw-bold ${selectedResult.timeExpired ? 'text-danger' : 'text-success'}`}>
+                          {selectedResult.timeExpired ? 'Time Expired' : 'Completed'}
                         </p>
                       </div>
                     </div>
@@ -269,10 +356,10 @@ function StudentDashboard() {
                         <i className="bi bi-calendar-check text-primary fs-1 mb-2"></i>
                         <h6>Completed At</h6>
                         <p className="mb-0 fw-bold">
-                          {new Date(examResults.completedAt).toLocaleDateString()}
+                          {new Date(selectedResult.completedAt).toLocaleDateString()}
                         </p>
                         <small className="text-muted">
-                          {new Date(examResults.completedAt).toLocaleTimeString()}
+                          {new Date(selectedResult.completedAt).toLocaleTimeString()}
                         </small>
                       </div>
                     </div>
@@ -292,24 +379,24 @@ function StudentDashboard() {
 
                 <div className="progress mb-4" style={{ height: '25px', borderRadius: '15px' }}>
                   <div
-                    className={`progress-bar ${examResults.percentage >= 70 ? 'bg-success' : examResults.percentage >= 50 ? 'bg-warning' : 'bg-danger'}`}
+                    className={`progress-bar ${selectedResult.percentage >= 70 ? 'bg-success' : selectedResult.percentage >= 50 ? 'bg-warning' : 'bg-danger'}`}
                     role="progressbar"
-                    style={{ width: `${examResults.percentage}%`, borderRadius: '15px' }}
-                    aria-valuenow={examResults.percentage}
+                    style={{ width: `${selectedResult.percentage}%`, borderRadius: '15px' }}
+                    aria-valuenow={selectedResult.percentage}
                     aria-valuemin="0"
                     aria-valuemax="100"
                   >
-                    <span className="fw-bold">{examResults.percentage}%</span>
+                    <span className="fw-bold">{selectedResult.percentage}%</span>
                   </div>
                 </div>
 
                 <div className="text-center">
-                  {examResults.percentage >= 70 ? (
+                  {selectedResult.percentage >= 70 ? (
                     <div className="alert alert-success border-0" style={{ borderRadius: '15px', background: 'linear-gradient(45deg, #d4edda, #c3e6cb)' }}>
                       <h5 className="mb-2">🎉 Excellent Performance!</h5>
                       <p className="mb-0">You aced the exam! Keep up the great work.</p>
                     </div>
-                  ) : examResults.percentage >= 50 ? (
+                  ) : selectedResult.percentage >= 50 ? (
                     <div className="alert alert-warning border-0" style={{ borderRadius: '15px', background: 'linear-gradient(45deg, #fff3cd, #ffeaa7)' }}>
                       <h5 className="mb-2">⚠️ Good Job!</h5>
                       <p className="mb-0">You passed! Consider reviewing challenging topics for improvement.</p>
@@ -327,7 +414,7 @@ function StudentDashboard() {
         </div>
 
         {/* Violations Section */}
-        {examResults.violations && (
+        {selectedResult.violations && (
           <div className="row mb-5">
             <div className="col-lg-10 mx-auto">
               <div className="card shadow-lg border-0" style={{ borderRadius: '20px', overflow: 'hidden' }}>
@@ -342,21 +429,21 @@ function StudentDashboard() {
                         <i className="bi bi-arrow-repeat text-warning fs-2 me-3"></i>
                         <div>
                           <h6 className="mb-1">Tab Switches</h6>
-                          <span className="badge bg-warning fs-6">{examResults.violations.tabSwitches}</span>
+                          <span className="badge bg-warning fs-6">{selectedResult.violations.tabSwitches}</span>
                         </div>
                       </div>
                       <div className="violation-item d-flex align-items-center mb-3 p-3 bg-light rounded">
                         <i className="bi bi-window text-danger fs-2 me-3"></i>
                         <div>
                           <h6 className="mb-1">Window Focus Loss</h6>
-                          <span className="badge bg-danger fs-6">{examResults.violations.windowBlurs}</span>
+                          <span className="badge bg-danger fs-6">{selectedResult.violations.windowBlurs}</span>
                         </div>
                       </div>
                       <div className="violation-item d-flex align-items-center mb-3 p-3 bg-light rounded">
                         <i className="bi bi-people-fill text-info fs-2 me-3"></i>
                         <div>
                           <h6 className="mb-1">Multiple Faces Detected</h6>
-                          <span className="badge bg-info fs-6">{examResults.violations.multipleFaces}</span>
+                          <span className="badge bg-info fs-6">{selectedResult.violations.multipleFaces}</span>
                         </div>
                       </div>
                     </div>
@@ -366,14 +453,14 @@ function StudentDashboard() {
                         <i className="bi bi-camera-video-off text-secondary fs-2 me-3"></i>
                         <div>
                           <h6 className="mb-1">Camera Issues</h6>
-                          <span className="badge bg-secondary fs-6">{examResults.violations.noCamera}</span>
+                          <span className="badge bg-secondary fs-6">{selectedResult.violations.noCamera}</span>
                         </div>
                       </div>
                       <div className="violation-item d-flex align-items-center mb-3 p-3 bg-light rounded">
                         <i className="bi bi-wifi-off text-danger fs-2 me-3"></i>
                         <div>
                           <h6 className="mb-1">Internet Disconnects</h6>
-                          <span className="badge bg-danger fs-6">{examResults.violations.internetDisconnects}</span>
+                          <span className="badge bg-danger fs-6">{selectedResult.violations.internetDisconnects}</span>
                         </div>
                       </div>
                       <div className="violation-summary text-center mt-4 p-3 bg-primary text-white rounded">
@@ -389,7 +476,7 @@ function StudentDashboard() {
         )}
 
         {/* Screenshots Section */}
-        {examResults.screenshots && examResults.screenshots.length > 0 && (
+        {selectedResult.screenshots && selectedResult.screenshots.length > 0 && (
           <div className="row mb-5">
             <div className="col-lg-10 mx-auto">
               <div className="card shadow-lg border-0" style={{ borderRadius: '20px', overflow: 'hidden' }}>
@@ -398,7 +485,7 @@ function StudentDashboard() {
                 </div>
                 <div className="card-body p-4">
                   <div className="row">
-                    {examResults.screenshots.map((screenshot, index) => (
+                    {selectedResult.screenshots.map((screenshot, index) => (
                       <div key={index} className="col-md-4 mb-4">
                         <div className="screenshot-card" style={{
                           borderRadius: '15px',
