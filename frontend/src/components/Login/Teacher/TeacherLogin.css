@@ -136,11 +136,12 @@
 
 .teacher-login-input-group {
   position: relative;
+  margin-bottom: 15px;
 }
 
 .teacher-login-input {
   width: 100%;
-  padding: 16px 20px 16px 50px;
+  padding: 12px 16px 12px 45px;
   border: 2px solid rgba(0, 168, 90, 0.2);
   border-radius: 12px;
   font-size: 16px;
@@ -158,36 +159,64 @@
   transform: translateY(-2px);
 }
 
+.teacher-login-input.error {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.1);
+}
+
+.teacher-login-error {
+  color: #dc3545;
+  font-size: 0.875rem;
+  margin-top: 4px;
+  display: block;
+  font-weight: 500;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .teacher-login-input::placeholder {
   color: var(--text-muted);
   font-weight: 400;
 }
 
-.teacher-login-input-group::before {
-  content: '';
+.teacher-login-input-with-icon {
+  position: relative;
+}
+
+.teacher-login-input-icon {
   position: absolute;
   left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  width: 20px;
-  height: 20px;
-  background-size: contain;
-  background-repeat: no-repeat;
-  opacity: 0.6;
-  transition: opacity 0.3s ease;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  z-index: 2;
+  transition: color 0.3s ease;
 }
 
-.teacher-login-input-group:nth-child(1)::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236c757d'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207'/%3E%3C/svg%3E");
+.teacher-login-input-with-icon .teacher-login-input:focus + .teacher-login-input-icon,
+.teacher-login-input-with-icon .teacher-login-input:focus ~ .teacher-login-input-icon {
+  color: var(--accent-green);
 }
 
-.teacher-login-input-group:nth-child(2)::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236c757d'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z'/%3E%3C/svg%3E");
+.teacher-login-password-toggle {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  transition: color 0.3s ease;
+  z-index: 3;
 }
 
-.teacher-login-input:focus + ::before,
-.teacher-login-input-group:focus-within::before {
-  opacity: 1;
+.teacher-login-password-toggle:hover {
+  color: var(--accent-green);
 }
 
 .teacher-login-submit-btn {

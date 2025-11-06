@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import authService from '../../../utils/auth';
 import './StudentSignup.css';
 
 function StudentSignup() {
@@ -137,9 +137,6 @@ function StudentSignup() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) {
-      for (let field in errors) {
-        alert(errors[field]);
-      }
       return;
     }
 
@@ -156,10 +153,8 @@ function StudentSignup() {
     }
 
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/signup', data);
+      const res = await authService.signup('/api/auth/signup', data);
       alert(res.data.msg);
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('studentId', res.data.studentId);
       navigate('/student-login');
     } catch (err) {
       alert(err.response?.data?.msg || 'Signup failed');
@@ -278,6 +273,7 @@ function StudentSignup() {
                   {errors.password && <span className="student-signup-error">{errors.password}</span>}
                 </div>
               </div>
+              {errors.photo && <span className="student-signup-error">{errors.photo}</span>}
               <button
                 type="submit"
                 className="student-signup-submit-btn"

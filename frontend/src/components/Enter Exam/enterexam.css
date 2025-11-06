@@ -1,0 +1,433 @@
+/* Enter Exam Page Styles - Professional Theme Matching */
+
+.enter-exam-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: var(--gradient);
+  padding: 20px;
+  font-family: 'Inter', sans-serif;
+}
+
+.enter-exam-card {
+  background: var(--light-color);
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  max-width: 1000px;
+  width: 100%;
+  animation: fadeInUp 0.8s ease-out;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.enter-exam-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+}
+
+.enter-exam-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 15px;
+  color: var(--primary-color);
+  text-align: center;
+  animation: fadeInUp 0.6s ease-out 0.2s both;
+}
+
+.enter-exam-subtitle {
+  font-size: 1.1rem;
+  color: var(--dark-color);
+  text-align: center;
+  margin-bottom: 30px;
+  opacity: 0.8;
+  animation: fadeInUp 0.6s ease-out 0.4s both;
+}
+
+.enter-exam-form {
+  animation: fadeInUp 0.6s ease-out 0.6s both;
+}
+
+.form-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 25px;
+}
+
+.form-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: var(--dark-color);
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+
+.exam-input {
+  padding: 14px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 16px;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.3s ease;
+  background: var(--light-color);
+  color: var(--dark-color);
+}
+
+.exam-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  transform: translateY(-1px);
+}
+
+.exam-input.error {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.error-message {
+  color: #ef4444;
+  font-size: 0.85rem;
+  margin-top: 6px;
+  font-weight: 500;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.photo-capture-section {
+  margin-bottom: 30px;
+  animation: fadeInUp 0.6s ease-out 0.8s both;
+}
+
+.photo-capture-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.photo-capture-buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn-start-camera,
+.btn-capture,
+.btn-retake {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 140px;
+}
+
+.btn-start-camera {
+  background: var(--accent-color);
+  color: var(--light-color);
+}
+
+.btn-start-camera:hover:not(:disabled) {
+  background: #4b5563;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(107, 114, 128, 0.3);
+}
+
+.btn-capture {
+  background: var(--primary-color);
+  color: var(--light-color);
+}
+
+.btn-capture:hover:not(:disabled) {
+  background: var(--secondary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+}
+
+.btn-retake {
+  background: var(--secondary-color);
+  color: var(--light-color);
+}
+
+.btn-retake:hover {
+  background: #047857;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(5, 150, 105, 0.3);
+}
+
+.btn-start-camera:disabled,
+.btn-capture:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.photo-capture-display {
+  border: 2px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fafafa;
+  transition: all 0.3s ease;
+}
+
+.photo-capture-display:hover {
+  border-color: var(--primary-color);
+  background: #f0fdf4;
+}
+
+.video-container {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+}
+
+.video-preview {
+  width: 100%;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.camera-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.1);
+  pointer-events: none;
+  border-radius: 12px;
+}
+
+.camera-frame {
+  width: 220px;
+  height: 280px;
+  border: 3px solid var(--primary-color);
+  border-radius: 16px;
+  position: relative;
+  margin-bottom: 16px;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+.camera-instruction {
+  color: var(--light-color);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 10px 16px;
+  border-radius: 24px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.photo-captured-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.photo-captured-img {
+  width: 220px;
+  height: 280px;
+  object-fit: cover;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  border: 4px solid var(--primary-color);
+  transition: transform 0.3s ease;
+}
+
+.photo-captured-img:hover {
+  transform: scale(1.05);
+}
+
+.photo-capture-status {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  color: var(--primary-color);
+  font-size: 1rem;
+  gap: 8px;
+}
+
+.photo-capture-placeholder {
+  text-align: center;
+  color: var(--accent-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.photo-capture-placeholder i {
+  font-size: 4rem;
+  opacity: 0.6;
+  color: var(--primary-color);
+}
+
+.photo-capture-placeholder p {
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.photo-canvas {
+  display: none;
+}
+
+.btn-enter-exam {
+  width: 100%;
+  padding: 16px;
+  background: var(--gradient);
+  color: var(--light-color);
+  border: none;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+  animation: fadeInUp 0.6s ease-out 1s both;
+}
+
+.btn-enter-exam:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(16, 185, 129, 0.4);
+}
+
+.btn-enter-exam:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .enter-exam-container {
+    padding: 10px;
+  }
+
+  .enter-exam-card {
+    max-width: 100%;
+    border-radius: 16px;
+  }
+
+  .enter-exam-title {
+    font-size: 2rem;
+  }
+
+  .enter-exam-subtitle {
+    font-size: 1rem;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .photo-capture-buttons {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn-start-camera,
+  .btn-capture,
+  .btn-retake {
+    min-width: auto;
+  }
+
+  .photo-capture-display {
+    min-height: 250px;
+    padding: 20px;
+  }
+
+  .camera-frame {
+    width: 180px;
+    height: 230px;
+  }
+
+  .photo-captured-img {
+    width: 180px;
+    height: 230px;
+  }
+
+  .video-preview {
+    max-width: 280px;
+  }
+
+  .btn-enter-exam {
+    font-size: 16px;
+    padding: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .enter-exam-title {
+    font-size: 1.8rem;
+  }
+
+  .exam-input {
+    padding: 12px 14px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+
+  .photo-capture-placeholder i {
+    font-size: 3rem;
+  }
+
+  .camera-instruction {
+    font-size: 0.8rem;
+    padding: 8px 12px;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .enter-exam-card {
+    background: var(--light-color);
+    color: var(--dark-color);
+  }
+
+  .exam-input {
+    background: #1f2937;
+    border-color: #374151;
+    color: var(--dark-color);
+  }
+
+  .exam-input:focus {
+    border-color: var(--primary-color);
+  }
+
+  .photo-capture-display {
+    background: #1f2937;
+    border-color: #374151;
+  }
+
+  .photo-capture-display:hover {
+    background: #111827;
+  }
+}

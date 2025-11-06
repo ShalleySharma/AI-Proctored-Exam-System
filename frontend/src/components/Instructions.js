@@ -25,7 +25,12 @@ function Instructions() {
 
   const handleStartExam = () => {
     if (cameraAccessible === true) {
-      navigate('/exam');
+      const examId = localStorage.getItem('examId');
+      if (examId) {
+        navigate(`/exam/${examId}`);
+      } else {
+        navigate('/exam');
+      }
     } else if (cameraAccessible === false) {
       alert('Please grant access to your webcam and microphone to start the exam.');
     } else {

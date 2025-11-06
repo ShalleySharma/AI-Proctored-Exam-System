@@ -1,0 +1,191 @@
+:root {
+  --primary-bg: #FFFFFF;
+  --accent-green: #00A85A;
+  --secondary-bg: #F8F9FA;
+  --text-dark: #1A1A1A;
+  --text-muted: #6c757d;
+  --shadow-light: 0 2px 15px rgba(0, 168, 90, 0.08);
+  --shadow-medium: 0 8px 30px rgba(0, 168, 90, 0.12);
+  --shadow-strong: 0 15px 35px rgba(0, 168, 90, 0.15);
+  --border-radius: 16px;
+  --transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.teacher-profile-container {
+  min-height: 100vh;
+  background-color: var(--primary-bg);
+  padding: 80px 20px 40px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.teacher-profile-card {
+  background: white;
+  border: 1px solid rgba(0, 168, 90, 0.1);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-light);
+  padding: 40px;
+  max-width: 900px;
+  margin: 0 auto;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.teacher-profile-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent-green), #028E4B);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.teacher-profile-card:hover::before {
+  opacity: 1;
+}
+
+.teacher-profile-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-strong);
+  border-color: rgba(0, 168, 90, 0.2);
+}
+
+.teacher-profile-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.teacher-profile-image-container {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 20px;
+}
+
+.teacher-profile-image {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid var(--accent-green);
+  box-shadow: var(--shadow-medium);
+  transition: var(--transition);
+}
+
+.teacher-profile-image:hover {
+  transform: scale(1.05);
+}
+
+.teacher-profile-name {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 10px;
+  font-family: 'Inter', sans-serif;
+}
+
+.teacher-profile-role {
+  font-size: 1.1rem;
+  color: var(--accent-green);
+  font-weight: 600;
+  margin-bottom: 30px;
+}
+
+.teacher-profile-info {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.teacher-profile-info-item {
+  background: var(--secondary-bg);
+  padding: 20px;
+  border-radius: 12px;
+  border-left: 4px solid var(--accent-green);
+  transition: var(--transition);
+}
+
+.teacher-profile-info-item:hover {
+  background: rgba(0, 168, 90, 0.05);
+  transform: translateX(5px);
+}
+
+.teacher-profile-info-label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 5px;
+}
+
+.teacher-profile-info-value {
+  font-size: 1.1rem;
+  color: var(--text-dark);
+  font-weight: 500;
+}
+
+.teacher-profile-actions {
+  text-align: center;
+}
+
+.teacher-profile-exam-btn {
+  background: linear-gradient(135deg, var(--accent-green) 0%, #028E4B 100%);
+  color: white;
+  border: none;
+  padding: 16px 32px;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: var(--shadow-light);
+  position: relative;
+  overflow: hidden;
+}
+
+.teacher-profile-exam-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
+}
+
+.teacher-profile-exam-btn:hover::before {
+  left: 100%;
+}
+
+.teacher-profile-exam-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-medium);
+}
+
+.teacher-profile-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: var(--primary-bg);
+}
+
+.teacher-profile-loading .spinner-border {
+  color: var(--accent-green);
+}
+
+.teacher-profile-error {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: var(--primary-bg);
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+}

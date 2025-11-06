@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useToast } from './ToastContext';
 import { enqueueSnapshot, blobToBase64 } from '../utils/retryQueue';
@@ -7,6 +7,7 @@ import AdvancedSystemCompliance from './AdvancedSystemCompliance';
 
 function ExamPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
@@ -37,7 +38,7 @@ function ExamPage() {
       const examResults = {
         sessionId,
         studentId: localStorage.getItem('studentId'),
-        examId: 'java-exam-001',
+        examId: exam ? exam.id : 'java-exam-001',
         answers: selectedOptions,
         score: finalScore,
         totalQuestions: questions.length,
@@ -68,7 +69,7 @@ function ExamPage() {
       }
 
       try {
-        const res = await axios.post(`${API_BASE}/api/exam/start`, { studentId, examId: 'java-exam-001' });
+        const res = await axios.post(`${API_BASE}/api/exam/start`, { studentId, examId: exam ? exam.id : 'java-exam-001' });
         console.log('Exam started successfully:', res.data);
         setSessionId(res.data.sessionId);
         setExamStarted(true);
@@ -160,7 +161,7 @@ function ExamPage() {
       const examResults = {
         sessionId,
         studentId: localStorage.getItem('studentId'),
-        examId: 'java-exam-001',
+        examId: exam ? exam.id : 'java-exam-001',
         answers: selectedOptions,
         score: finalScore,
         totalQuestions: questions.length,
@@ -180,10 +181,9 @@ function ExamPage() {
         videoRef.current.srcObject = null;
       }
 
-      // Logout and navigate to home page
+      // Navigate to student dashboard to view results
       toastAdd('Time is up! Your exam has been submitted automatically.');
-      localStorage.clear();
-      navigate('/');
+      navigate('/student-dashboard');
     } catch (error) {
       console.error('Failed to submit exam on timeout:', error);
       // Stop camera and microphone even on error
@@ -192,10 +192,9 @@ function ExamPage() {
         stream.getTracks().forEach(track => track.stop());
         videoRef.current.srcObject = null;
       }
-      // Still logout and navigate to home page even if backend submission fails
+      // Still navigate to student dashboard even if backend submission fails
       toastAdd('Time is up! Your exam has been submitted automatically. (Note: There was an issue saving to server)');
-      localStorage.clear();
-      navigate('/');
+      navigate('/student-dashboard');
     }
   };
 
@@ -269,118 +268,132 @@ function ExamPage() {
     captureSnapshot(violationMsg);
   };
 
-  const questions = [
-    {
-      id: 1,
-      question: "Which of the following is not a primitive data type in Java?",
-      options: [
-        "int",
-        "float",
-        "String",
-        "boolean"
-      ],
-      answer: "String"
-    },
-    {
-      id: 2,
-      question: "What is the correct file extension for Java source files?",
-      options: [
-        ".jav",
-        ".java",
-        ".class",
-        ".jv"
-      ],
-      answer: ".java"
-    },
-    {
-      id: 3,
-      question: "Which method is the entry point for any Java program?",
-      options: [
-        "start()",
-        "main()",
-        "run()",
-        "execute()"
-      ],
-      answer: "main()"
-    },
-    {
-      id: 4,
-      question: "Which keyword is used to inherit a class in Java?",
-      options: [
-        "implements",
-        "extends",
-        "inherits",
-        "override"
-      ],
-      answer: "extends"
-    },
-    {
-      id: 5,
-      question: `What will be the output of the following code?\n\nint a = 10;\nint b = 20;\nSystem.out.println(a + b);`,
-      options: [
-        "30",
-        "1020",
-        "a + b",
-        "Compilation error"
-      ],
-      answer: "30"
-    },
-    {
-      id: 6,
-      question: `What will be the output of this code?\n\nint x = 3;\nint y = 5;\nx += ++y + y++;\nSystem.out.println(x);`,
-      options: [
-        "10",
-        "12",
-        "14",
-        "15"
-      ],
-      answer: "15"
-    },
-    {
-      id: 7,
-      question: "Which of the following statements about Java memory management is TRUE?",
-      options: [
-        "Java requires manual memory deallocation.",
-        "Garbage collection in Java runs on demand.",
-        "Java uses automatic garbage collection for unused objects.",
-        "Java does not use heap memory."
-      ],
-      answer: "Java uses automatic garbage collection for unused objects."
-    },
-    {
-      id: 8,
-      question: `What will the following code print?\n\nclass A {\n    static void display() { System.out.println("A"); }\n}\nclass B extends A {\n    static void display() { System.out.println("B"); }\n}\npublic class Test {\n    public static void main(String[] args) {\n        A obj = new B();\n        obj.display();\n    }\n}`,
-      options: [
-        "A",
-        "B",
-        "AB",
-        "Compilation Error"
-      ],
-      answer: "A"
-    },
-    {
-      id: 9,
-      question: `What is the output of the following code?\n\npublic class Test {\n    public static void main(String[] args) {\n        String s1 = "Java";\n        String s2 = "Ja" + "va";\n        System.out.println(s1 == s2);\n    }\n}`,
-      options: [
-        "true",
-        "false",
-        "Compilation error",
-        "Runtime error"
-      ],
-      answer: "true"
-    },
-    {
-      id: 10,
-      question: `What will the code print?\n\npublic class Test {\n    public static void main(String[] args) {\n        int i = 0;\n        for(System.out.println("Hi"); i < 2; System.out.println(i++));\n    }\n}`,
-      options: [
-        "Hi 0 1",
-        "HiHi",
-        "Hi followed by 0 and 1",
-        "Hi 0 1 (without space)"
-      ],
-      answer: "Hi followed by 0 and 1"
+  const [exam, setExam] = useState(null);
+  const [questions, setQuestions] = useState([]);
+
+  // Load exam data from navigation state
+  useEffect(() => {
+    const examData = location.state?.exam;
+    if (examData) {
+      setExam(examData);
+      setQuestions(examData.questions || []);
+      setTimeLeft(examData.duration * 60); // Convert minutes to seconds
+    } else {
+      // Fallback to hardcoded questions if no exam data
+      setQuestions([
+        {
+          id: 1,
+          question: "Which of the following is not a primitive data type in Java?",
+          options: [
+            "int",
+            "float",
+            "String",
+            "boolean"
+          ],
+          answer: "String"
+        },
+        {
+          id: 2,
+          question: "What is the correct file extension for Java source files?",
+          options: [
+            ".jav",
+            ".java",
+            ".class",
+            ".jv"
+          ],
+          answer: ".java"
+        },
+        {
+          id: 3,
+          question: "Which method is the entry point for any Java program?",
+          options: [
+            "start()",
+            "main()",
+            "run()",
+            "execute()"
+          ],
+          answer: "main()"
+        },
+        {
+          id: 4,
+          question: "Which keyword is used to inherit a class in Java?",
+          options: [
+            "implements",
+            "extends",
+            "inherits",
+            "override"
+          ],
+          answer: "extends"
+        },
+        {
+          id: 5,
+          question: `What will be the output of the following code?\n\nint a = 10;\nint b = 20;\nSystem.out.println(a + b);`,
+          options: [
+            "30",
+            "1020",
+            "a + b",
+            "Compilation error"
+          ],
+          answer: "30"
+        },
+        {
+          id: 6,
+          question: `What will be the output of this code?\n\nint x = 3;\nint y = 5;\nx += ++y + y++;\nSystem.out.println(x);`,
+          options: [
+            "10",
+            "12",
+            "14",
+            "15"
+          ],
+          answer: "15"
+        },
+        {
+          id: 7,
+          question: "Which of the following statements about Java memory management is TRUE?",
+          options: [
+            "Java requires manual memory deallocation.",
+            "Garbage collection in Java runs on demand.",
+            "Java uses automatic garbage collection for unused objects.",
+            "Java does not use heap memory."
+          ],
+          answer: "Java uses automatic garbage collection for unused objects."
+        },
+        {
+          id: 8,
+          question: `What will the following code print?\n\nclass A {\n    static void display() { System.out.println("A"); }\n}\nclass B extends A {\n    static void display() { System.out.println("B"); }\n}\npublic class Test {\n    public static void main(String[] args) {\n        A obj = new B();\n        obj.display();\n    }\n}`,
+          options: [
+            "A",
+            "B",
+            "AB",
+            "Compilation Error"
+          ],
+          answer: "A"
+        },
+        {
+          id: 9,
+          question: `What is the output of the following code?\n\npublic class Test {\n    public static void main(String[] args) {\n        String s1 = "Java";\n        String s2 = "Ja" + "va";\n        System.out.println(s1 == s2);\n    }\n}`,
+          options: [
+            "true",
+            "false",
+            "Compilation error",
+            "Runtime error"
+          ],
+          answer: "true"
+        },
+        {
+          id: 10,
+          question: `What will the code print?\n\npublic class Test {\n    public static void main(String[] args) {\n        int i = 0;\n        for(System.out.println("Hi"); i < 2; System.out.println(i++));\n    }\n}`,
+          options: [
+            "Hi 0 1",
+            "HiHi",
+            "Hi followed by 0 and 1",
+            "Hi 0 1 (without space)"
+          ],
+          answer: "Hi followed by 0 and 1"
+        }
+      ]);
     }
-  ];
+  }, []);
 
   const handleOptionSelect = (option) => {
     setSelectedOptions({
@@ -407,7 +420,7 @@ function ExamPage() {
       const examResults = {
         sessionId,
         studentId: localStorage.getItem('studentId'),
-        examId: 'java-exam-001',
+        examId: exam ? exam.id : 'java-exam-001',
         answers: selectedOptions,
         score: finalScore,
         totalQuestions: questions.length,
@@ -427,10 +440,9 @@ function ExamPage() {
         videoRef.current.srcObject = null;
       }
 
-      // Logout and navigate to home page
+      // Navigate to student dashboard to view results
       toastAdd('Exam submitted successfully!');
-      localStorage.clear();
-      navigate('/');
+      navigate('/student-dashboard');
     } catch (error) {
       console.error('Failed to submit exam:', error);
       // Stop camera and microphone even on error
@@ -439,10 +451,9 @@ function ExamPage() {
         stream.getTracks().forEach(track => track.stop());
         videoRef.current.srcObject = null;
       }
-      // Still logout and navigate to home page even if backend submission fails
+      // Still navigate to student dashboard even if backend submission fails
       toastAdd('Exam submitted! (Note: There was an issue saving to server)');
-      localStorage.clear();
-      navigate('/');
+      navigate('/student-dashboard');
     }
   };
 
@@ -461,6 +472,27 @@ function ExamPage() {
     });
     return score;
   };
+
+  if (questions.length === 0) {
+    return (
+      <div style={{
+        height: '100vh',
+        width: '100vw',
+        background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+      }}>
+        <div className="text-center">
+          <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="mt-3">Loading exam...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -500,7 +532,7 @@ function ExamPage() {
         }}>
           {/* Centered Test Heading */}
           <h1 className="display-5 fw-bold mb-4" style={{ color: '#333', textAlign: 'center', flex: 1, margin: '0' }}>
-            Java Programming Certification Exam
+            {exam ? exam.title : 'Java Programming Certification Exam'}
           </h1>
 
           {/* Top-Right: Timer and Circular Video */}
@@ -600,10 +632,8 @@ function ExamPage() {
             <h4 style={{ color: '#333', marginBottom: '20px', fontWeight: 'bold' }}>Exam Details</h4>
             <div style={{ fontSize: '1.1rem', lineHeight: '1.6', color: '#555' }}>
               <p><strong>Total Questions:</strong> {questions.length}</p>
-              <p><strong>Aptitude Questions:</strong> 15</p>
-              <p><strong>Technical Questions:</strong> 15</p>
-              <p><strong>Duration:</strong> 10 minutes</p>
-              <p><strong>Instructions:</strong> Answer all questions. Each question carries equal marks.</p>
+              <p><strong>Duration:</strong> {exam ? `${exam.duration} minutes` : '10 minutes'}</p>
+              <p><strong>Instructions:</strong> {exam ? exam.instructions : 'Answer all questions. Each question carries equal marks.'}</p>
             </div>
             <div style={{ marginTop: '20px' }}>
               <h5 style={{ color: '#333', marginBottom: '15px' }}>Live Proctoring</h5>

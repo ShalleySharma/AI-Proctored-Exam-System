@@ -1,6 +1,5 @@
-# TODO: Update StudentLogin Page to Horizontal Layout
+# TODO: Fix Automatic Logout on Page Refresh
 
-## Tasks
-- [x] Update StudentLogin.js: Remove sectioned layout, arrange right panel horizontally with form on left and camera on right.
-- [x] Update StudentLogin.css: Remove section-related styles, add horizontal flex layout for right panel, adjust padding to match TeacherLogin.css.
-- [x] Test the updated StudentLogin page for functionality and layout.
+## Steps to Complete
+- [x] Update `frontend/src/components/Navbar.js` to modify token verification logic: Only log out on 401 status, not on other errors.
+- [ ] Test the fix: Verify behavior on page refresh with valid token, invalid token (401), and network errors.

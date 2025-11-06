@@ -22,7 +22,7 @@ function StudentDashboard() {
         return;
       }
 
-      // Fetch the latest session for this student
+      // Fetch all completed exams for this student
       const res = await axios.get(`http://localhost:5000/api/exam/student-results/${studentId}`);
       const data = res.data;
 
@@ -30,7 +30,7 @@ function StudentDashboard() {
     } catch (err) {
       console.error('Failed to fetch exam results:', err);
       // For demo purposes, show mock data if API fails
-      setExamResults({
+      setExamResults([{
         score: 8,
         totalQuestions: 10,
         percentage: 80,
@@ -47,8 +47,10 @@ function StudentDashboard() {
           'https://via.placeholder.com/200x150?text=Violation+1',
           'https://via.placeholder.com/200x150?text=Violation+2',
           'https://via.placeholder.com/200x150?text=Violation+3'
-        ]
-      });
+        ],
+        examTitle: 'Java Programming Certification Exam',
+        examSubject: 'Computer Science'
+      }]);
     } finally {
       setLoading(false);
     }
@@ -83,6 +85,21 @@ function StudentDashboard() {
           <h1 className="text-grey mb-3" style={{ fontWeight: 'bold', textShadow: '2px 2px 4px rgba(0,0,0,0.3)', color: '#6c757d' }}>
             📊 Dashboard
           </h1>
+          <div className="mb-4">
+            <button
+              onClick={() => window.location.href = '/join-exam'}
+              className="btn btn-primary btn-lg px-4 py-2 me-3"
+              style={{
+                borderRadius: '25px',
+                fontWeight: 'bold',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                border: 'none'
+              }}
+            >
+              <i className="bi bi-plus-circle me-2"></i>
+              Join Exam
+            </button>
+          </div>
           </div>
 
           <div className="row">
@@ -112,7 +129,8 @@ function StudentDashboard() {
                     }}
                   >
                     <div className="card-header text-white text-center py-3" style={{ background: 'linear-gradient(45deg, #1e3c72, #2a5298)' }}>
-                      <h5 className="mb-0">Java Programming Certification Exam</h5>
+                      <h5 className="mb-0">{result.examTitle || 'Exam'}</h5>
+                      <small className="text-white-50">{result.examSubject || 'Subject'}</small>
                     </div>
                     <div className="card-body text-center p-4">
                       <div className="mb-3">
@@ -198,10 +216,11 @@ function StudentDashboard() {
       // Add header information
       pdf.setFontSize(16);
       pdf.setTextColor(40, 40, 40);
-      pdf.text('Java Programming Certification Exam', 105, 20, { align: 'center' });
+      pdf.text(selectedResult.examTitle || 'Exam', 105, 20, { align: 'center' });
       pdf.setFontSize(12);
-      pdf.text(`Exam Date: ${new Date(selectedResult.completedAt).toLocaleDateString()}`, 105, 35, { align: 'center' });
-      pdf.text(`Score: ${selectedResult.score}/${selectedResult.totalQuestions} (${selectedResult.percentage}%)`, 105, 45, { align: 'center' });
+      pdf.text(`Subject: ${selectedResult.examSubject || 'N/A'}`, 105, 30, { align: 'center' });
+      pdf.text(`Exam Date: ${new Date(selectedResult.completedAt).toLocaleDateString()}`, 105, 40, { align: 'center' });
+      pdf.text(`Score: ${selectedResult.score}/${selectedResult.totalQuestions} (${selectedResult.percentage}%)`, 105, 50, { align: 'center' });
 
       pdf.save(`Java_Exam_Report_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (error) {
@@ -246,10 +265,11 @@ function StudentDashboard() {
       // Add header information
       pdf.setFontSize(16);
       pdf.setTextColor(40, 40, 40);
-      pdf.text('Java Programming Certification Exam', 105, 20, { align: 'center' });
+      pdf.text(selectedResult.examTitle || 'Exam', 105, 20, { align: 'center' });
       pdf.setFontSize(12);
-      pdf.text(`Exam Date: ${new Date(selectedResult.completedAt).toLocaleDateString()}`, 105, 35, { align: 'center' });
-      pdf.text(`Score: ${selectedResult.score}/${selectedResult.totalQuestions} (${selectedResult.percentage}%)`, 105, 45, { align: 'center' });
+      pdf.text(`Subject: ${selectedResult.examSubject || 'N/A'}`, 105, 30, { align: 'center' });
+      pdf.text(`Exam Date: ${new Date(selectedResult.completedAt).toLocaleDateString()}`, 105, 40, { align: 'center' });
+      pdf.text(`Score: ${selectedResult.score}/${selectedResult.totalQuestions} (${selectedResult.percentage}%)`, 105, 50, { align: 'center' });
 
       const pdfBlob = pdf.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);

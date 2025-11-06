@@ -1,111 +1,61 @@
-import React, { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import authService from '../../../utils/auth';
 import './TeacherLogin.css';
 
 function TeacherLogin() {
   const [formData, setFormData] = useState({ email: '', password: '' });
-  const [photo, setPhoto] = useState(null);
-  const [capturedImage, setCapturedImage] = useState(null);
-  const [stream, setStream] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
-    }
-  }, [stream]);
-
-  const startCamera = async () => {
-    try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
-    } catch (err) {
-      alert('Camera access denied');
-    }
-  };
-
-  const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
-      ctx.drawImage(videoRef.current, 0, 0);
-      canvas.toBlob((blob) => {
-        setPhoto(blob);
-      });
-      setCapturedImage(canvas.toDataURL());
-
-      // stop webcam stream
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
-      }
-    }
-  };
-
-  const retakePhoto = () => {
-    setCapturedImage(null);
-    setPhoto(null);
-    startCamera();
-  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    // Clear error for the field being changed
+    if (errors[e.target.name]) {
+      setErrors({ ...errors, [e.target.name]: '' });
+    }
   };
 
   const validateForm = () => {
     const newErrors = {};
     if (!formData.email) {
       newErrors.email = 'Email is required';
-    } else if (!/@gmail\.com$/.test(formData.email)) {
-      newErrors.email = 'Email must be a valid Gmail address (e.g., example@gmail.com)';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
     }
     if (!formData.password) {
       newErrors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters long';
-    } else if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password)) {
-      newErrors.password = 'Password must contain at least one special character';
     }
-    if (!capturedImage) newErrors.photo = 'Photo verification is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrors({}); // Clear all errors before validation
     if (!validateForm()) {
-      for (let field in errors) {
-        alert(errors[field]);
-      }
       return;
     }
     setIsLoading(true);
-    const data = new FormData();
-    data.append('email', formData.email);
-    data.append('password', formData.password);
-    if (photo) {
-      data.append('photo', photo, 'login.jpg');
-    }
+    const payload = new FormData();
+    payload.append('email', formData.email);
+    payload.append('password', formData.password);
 
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/teacher/login', data);
+      const res = await authService.login('/api/auth/teacher-login', payload);
       alert(res.data.msg);
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('teacherId', res.data.teacherId);
-      navigate('/dashboard');
+      navigate('/');
     } catch (err) {
-      alert(err.response?.data?.msg || 'Login failed');
+      const errorMsg = err.response?.data?.msg || err.response?.data?.error || 'Login failed';
+      const lowerMsg = errorMsg.toLowerCase();
+      if (lowerMsg.includes('password') || lowerMsg.includes('invalid') || lowerMsg.includes('wrong') || lowerMsg.includes('incorrect')) {
+        setErrors({ password: 'Password is not correct' });
+      } else if (lowerMsg.includes('email') || lowerMsg.includes('user') || lowerMsg.includes('not found') || lowerMsg.includes('not registered') || lowerMsg.includes('does not exist')) {
+        setErrors({ email: 'Email is not registered' });
+      } else {
+        alert(errorMsg);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -125,19 +75,24 @@ function TeacherLogin() {
           <h2 className="teacher-login-title">Teacher Login</h2>
           <form className="teacher-login-form" onSubmit={handleSubmit}>
             <div className="teacher-login-input-group">
-              <input
-                type="email"
-                name="email"
-                placeholder="Email Address"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                className={`teacher-login-input ${errors.email ? 'error' : ''}`}
-              />
+              <div className="teacher-login-input-with-icon">
+                <i className="bi bi-envelope teacher-login-input-icon"></i>
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="Email Address"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  autoComplete="off"
+                  className={`teacher-login-input ${errors.email ? 'error' : ''}`}
+                />
+              </div>
               {errors.email && <span className="teacher-login-error">{errors.email}</span>}
             </div>
             <div className="teacher-login-input-group">
-              <div className="teacher-login-password">
+              <div className="teacher-login-input-with-icon">
+                <i className="bi bi-lock teacher-login-input-icon"></i>
                 <input
                   type="password"
                   name="password"
@@ -145,15 +100,22 @@ function TeacherLogin() {
                   value={formData.password}
                   onChange={handleChange}
                   required
+                  autoComplete="new-password"
                   className={`teacher-login-input ${errors.password ? 'error' : ''}`}
                 />
-                {errors.password && <span className="teacher-login-error">{errors.password}</span>}
+                <i className="bi bi-eye-slash teacher-login-password-toggle" onClick={() => {
+                  const input = document.querySelector('input[name="password"]');
+                  input.type = input.type === 'password' ? 'text' : 'password';
+                  const icon = document.querySelector('.teacher-login-password-toggle');
+                  icon.className = input.type === 'password' ? 'bi bi-eye-slash teacher-login-password-toggle' : 'bi bi-eye teacher-login-password-toggle';
+                }}></i>
               </div>
+              {errors.password && <span className="teacher-login-error">{errors.password}</span>}
             </div>
             <button
               type="submit"
               className="teacher-login-submit-btn"
-              disabled={!capturedImage || isLoading}
+              disabled={isLoading}
             >
               {isLoading ? (
                 <>
@@ -168,82 +130,6 @@ function TeacherLogin() {
               )}
             </button>
           </form>
-          <div className="teacher-login-camera-section">
-            <div className="teacher-login-camera-controls">
-              <div className="teacher-login-camera-buttons">
-                <button
-                  type="button"
-                  onClick={startCamera}
-                  className="teacher-login-btn teacher-login-btn-secondary"
-                  disabled={!!stream || !!capturedImage}
-                >
-                  <i className="bi bi-camera-video me-2"></i>
-                  Start Camera
-                </button>
-                <button
-                  type="button"
-                  onClick={capturePhoto}
-                  disabled={!stream || !!capturedImage}
-                  className="teacher-login-btn teacher-login-btn-primary"
-                >
-                  <i className="bi bi-camera me-2"></i>
-                  Capture Photo
-                </button>
-              </div>
-
-              {capturedImage && (
-                <button
-                  type="button"
-                  onClick={retakePhoto}
-                  className="teacher-login-retake-btn"
-                >
-                  <i className="bi bi-arrow-repeat me-2"></i>
-                  Retake Photo
-                </button>
-              )}
-            </div>
-
-            <div className="teacher-login-camera-display">
-              {stream && !capturedImage && (
-                <div className="teacher-login-video-container">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    className="teacher-login-video"
-                  />
-                  <div className="teacher-login-camera-overlay">
-                    <div className="teacher-login-camera-frame"></div>
-                    <p className="teacher-login-camera-instruction">
-                      Position your face within the frame
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {capturedImage && (
-                <div className="teacher-login-captured-container">
-                  <img
-                    src={capturedImage}
-                    alt="Captured"
-                    className="teacher-login-captured-img"
-                  />
-                  <div className="teacher-login-capture-status">
-                    <i className="bi bi-check-circle-fill text-success me-2"></i>
-                    Photo captured successfully
-                  </div>
-                </div>
-              )}
-
-              {!stream && !capturedImage && (
-                <div className="teacher-login-camera-placeholder">
-                  <i className="bi bi-camera"></i>
-                  <p>Click "Start Camera" to begin verification</p>
-                </div>
-              )}
-            </div>
-
-            <canvas ref={canvasRef} className="teacher-login-canvas" />
-          </div>
           <p className="teacher-login-footer">
             Don't have an account? <a href="/teacher-signup">Sign up here</a>
           </p>

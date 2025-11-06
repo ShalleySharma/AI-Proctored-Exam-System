@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function InstructorDashboard() {
@@ -38,7 +39,9 @@ function InstructorDashboard() {
 
   return (
     <div className="container py-4">
-      <h2 className="text-center mb-4 fw-bold text-primary">📘 Instructor Dashboard</h2>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2 className="fw-bold text-primary">📘 Instructor Dashboard</h2>
+      </div>
 
       {sessions.length === 0 ? (
         <p className="text-center text-muted">No sessions found.</p>

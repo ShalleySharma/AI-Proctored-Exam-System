@@ -2,9 +2,12 @@ import express from 'express';
 const router = express.Router();
 import Session from '../models/Session.js';
 import Snapshot from '../models/Snapshot.js';
+import Exam from '../models/Exam.js';
+import Student from '../models/Student.js';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
+import auth from '../middleware/auth.js';
 
 const snapshotStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/snapshots/'),
@@ -109,36 +112,226 @@ router.post('/submit', async (req, res) => {
 router.get('/student-results/:studentId', async (req, res) => {
   try {
     const { studentId } = req.params;
-    // Find the latest completed session for the student
-    const session = await Session.findOne({ student_id: studentId, completed_at: { $exists: true } }).sort({ completed_at: -1 });
-    if (!session) {
-      return res.status(404).json({ msg: 'No completed exam found for this student' });
+    // Find all completed sessions for the student
+    const sessions = await Session.find({
+      student_id: studentId,
+      completed_at: { $exists: true }
+    })
+    .populate('exam_id', 'title subject')
+    .sort({ completed_at: -1 });
+
+    if (!sessions || sessions.length === 0) {
+      return res.status(404).json({ msg: 'No completed exams found for this student' });
     }
-    // Get snapshots for the session
-    const snapshots = await Snapshot.find({ session_id: session._id });
-    // Calculate percentage
-    const percentage = session.total_questions ? Math.round((session.score / session.total_questions) * 100) : 0;
-    // Map violations
-    const violations = {
-      tabSwitches: session.violation_counts.tab_switches,
-      windowBlurs: session.violation_counts.window_focus_loss,
-      multipleFaces: session.violation_counts.multiple_faces_detected,
-      noCamera: session.violation_counts.camera_issues,
-      internetDisconnects: session.violation_counts.internet_disconnects
-    };
-    // Screenshots URLs
-    const screenshots = snapshots.map(s => `http://localhost:5000/${s.image_path}`);
-    res.json({
-      score: session.score,
-      totalQuestions: session.total_questions,
-      percentage,
-      completedAt: session.completed_at,
-      timeExpired: session.time_expired,
-      violations,
-      screenshots
-    });
+
+    // Process each session
+    const examResults = await Promise.all(sessions.map(async (session) => {
+      // Get snapshots for the session
+      const snapshots = await Snapshot.find({ session_id: session._id });
+      // Calculate percentage
+      const percentage = session.total_questions ? Math.round((session.score / session.total_questions) * 100) : 0;
+      // Map violations
+      const violations = {
+        tabSwitches: session.violation_counts?.tab_switches || 0,
+        windowBlurs: session.violation_counts?.window_focus_loss || 0,
+        multipleFaces: session.violation_counts?.multiple_faces_detected || 0,
+        noCamera: session.violation_counts?.camera_issues || 0,
+        internetDisconnects: session.violation_counts?.internet_disconnects || 0
+      };
+      // Screenshots URLs
+      const screenshots = snapshots.map(s => `http://localhost:5000/${s.image_path}`);
+
+      return {
+        score: session.score,
+        totalQuestions: session.total_questions,
+        percentage,
+        completedAt: session.completed_at,
+        timeExpired: session.time_expired,
+        violations,
+        screenshots,
+        examTitle: session.exam_id?.title || 'Unknown Exam',
+        examSubject: session.exam_id?.subject || 'Unknown Subject'
+      };
+    }));
+
+    res.json(examResults);
   } catch (err) {
+    console.error('Error fetching student results:', err);
     res.status(500).send('Server error');
+  }
+});
+
+// Create a new exam (teacher only)
+router.post('/create', auth, async (req, res) => {
+  try {
+    const { title, subject, description, date, duration, totalMarks, questions } = req.body;
+    const teacherId = req.user.id; // Assuming auth middleware sets req.user
+
+    const exam = new Exam({
+      title,
+      subject,
+      description,
+      createdBy: teacherId,
+      date,
+      duration,
+      totalMarks,
+      questions: questions || []
+    });
+
+    await exam.save();
+    res.status(201).json({
+      success: true,
+      message: 'Exam created successfully',
+      examCode: exam.examCode,
+      exam
+    });
+  } catch (error) {
+    console.error('Error creating exam:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Get all exams for a teacher
+router.get('/teacher-exams', auth, async (req, res) => {
+  try {
+    const teacherId = req.user.id;
+    const exams = await Exam.find({ createdBy: teacherId }).sort({ date: -1 });
+    res.json(exams);
+  } catch (error) {
+    console.error('Error fetching exams:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get all exams for students
+router.get('/student-exams', auth, async (req, res) => {
+  try {
+    const exams = await Exam.find().populate('createdBy', 'name').sort({ date: -1 });
+    res.json(exams);
+  } catch (error) {
+    console.error('Error fetching exams:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get a specific exam by ID
+router.get('/:id', auth, async (req, res) => {
+  try {
+    const exam = await Exam.findById(req.params.id).populate('createdBy', 'name');
+    if (!exam) {
+      return res.status(404).json({ message: 'Exam not found' });
+    }
+    res.json(exam);
+  } catch (error) {
+    console.error('Error fetching exam:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update an exam (teacher only)
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const { title, subject, description, date, duration, totalMarks, questions } = req.body;
+    const teacherId = req.user.id;
+
+    const exam = await Exam.findOneAndUpdate(
+      { _id: req.params.id, createdBy: teacherId },
+      { title, subject, description, date, duration, totalMarks, questions },
+      { new: true }
+    );
+
+    if (!exam) {
+      return res.status(404).json({ message: 'Exam not found or unauthorized' });
+    }
+
+    res.json({ message: 'Exam updated successfully', exam });
+  } catch (error) {
+    console.error('Error updating exam:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete an exam (teacher only)
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const teacherId = req.user.id;
+    const exam = await Exam.findOneAndDelete({ _id: req.params.id, createdBy: teacherId });
+
+    if (!exam) {
+      return res.status(404).json({ message: 'Exam not found or unauthorized' });
+    }
+
+    res.json({ message: 'Exam deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting exam:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Join exam by code (for students)
+router.get('/join/:code', auth, async (req, res) => {
+  try {
+    const exam = await Exam.findOne({ examCode: req.params.code }).populate('createdBy', 'name');
+    if (!exam) {
+      return res.status(404).json({ success: false, message: 'Exam not found' });
+    }
+    res.json({ success: true, exam });
+  } catch (error) {
+    console.error('Error joining exam:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Validate exam ID and roll number
+router.post('/validate', async (req, res) => {
+  try {
+    const { examId, rollNo } = req.body;
+
+    // Check if exam exists
+    const exam = await Exam.findOne({ examCode: examId });
+    if (!exam) {
+      return res.status(400).json({ valid: false, error: 'invalid_exam' });
+    }
+
+    // Check if student exists with the roll number
+    const student = await Student.findOne({ roll_no: rollNo });
+    if (!student) {
+      return res.status(400).json({ valid: false, error: 'invalid_rollno' });
+    }
+
+    // If both exist, validation successful
+    res.json({ valid: true });
+  } catch (error) {
+    console.error('Error validating exam and roll number:', error);
+    res.status(500).json({ valid: false, error: 'server_error' });
+  }
+});
+
+// Save enter photo temporarily
+const enterPhotoStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, 'uploads/enter_photos/'),
+  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+});
+const uploadEnterPhoto = multer({ storage: enterPhotoStorage });
+
+router.post('/save-photo', uploadEnterPhoto.single('photo'), async (req, res) => {
+  const { studentId, examId } = req.body;
+  const image_path = req.file.path;
+  try {
+    // Save meta for demo
+    const meta = {
+      studentId,
+      examId,
+      filename: req.file.filename,
+      originalname: req.file.originalname,
+      savedAt: new Date().toISOString()
+    };
+    const metaFile = path.join('uploads/enter_photos', `${req.file.filename}.meta.json`);
+    fs.writeFileSync(metaFile, JSON.stringify(meta, null, 2));
+    res.status(201).json({ ok: true, meta });
+  } catch (err) {
+    console.error('Save photo error', err);
+    res.status(500).json({ ok: false, error: 'Save failed' });
   }
 });
 

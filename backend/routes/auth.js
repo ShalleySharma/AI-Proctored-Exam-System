@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import cloudinary from '../config/cloudinary.js';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import auth from '../middleware/auth.js';
 
 const signupStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
@@ -48,7 +49,7 @@ router.post('/signup', uploadSignup.single('photo'), async (req, res) => {
 });
 
 router.post('/teacher-signup', uploadSignup.single('photo'), async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, full_name, school } = req.body;
   const photo_path = req.file ? req.file.path : null;
   console.log('Teacher signup attempt:', email, photo_path);
 
@@ -56,7 +57,7 @@ router.post('/teacher-signup', uploadSignup.single('photo'), async (req, res) =>
     if (await Teacher.findOne({ email })) return res.status(400).json({ msg: 'Email exists' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const teacher = new Teacher({ email, password: hashedPassword, photo_path });
+    const teacher = new Teacher({ email, password: hashedPassword, photo_path, full_name, school });
     await teacher.save();
     console.log('Teacher saved:', teacher.email);
     res.json({ msg: 'Teacher signup successful' });
@@ -81,7 +82,7 @@ router.post('/login', uploadLogin.single('photo'), async (req, res) => {
 
     // TODO: Implement face recognition using loginPhotoPath and student.photo_path
 
-    const token = jwt.sign({ id: student._id }, 'secret', { expiresIn: '1h' });
+    const token = jwt.sign({ id: student._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '365d' });
     res.json({ msg: 'Login successful', token, studentId: student._id });
   } catch (err) {
     console.error('Login error:', err);
@@ -104,12 +105,38 @@ router.post('/teacher-login', uploadLogin.single('photo'), async (req, res) => {
 
     // TODO: Implement face recognition using loginPhotoPath and teacher.photo_path
 
-    const token = jwt.sign({ id: teacher._id }, 'secret', { expiresIn: '1h' });
+    const token = jwt.sign({ id: teacher._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '365d' });
     res.json({ msg: 'Teacher login successful', token, teacherId: teacher._id });
   } catch (err) {
     console.error('Teacher login error:', err);
     res.status(500).send('Server error');
   }
+});
+
+router.get('/teacher-profile', auth, async (req, res) => {
+  try {
+    const teacher = await Teacher.findById(req.userId).select('-password');
+    if (!teacher) return res.status(404).json({ msg: 'Teacher not found' });
+    res.json(teacher);
+  } catch (err) {
+    console.error('Get teacher profile error:', err);
+    res.status(500).send('Server error');
+  }
+});
+
+router.get('/student-profile', auth, async (req, res) => {
+  try {
+    const student = await Student.findById(req.userId).select('-password');
+    if (!student) return res.status(404).json({ msg: 'Student not found' });
+    res.json(student);
+  } catch (err) {
+    console.error('Get student profile error:', err);
+    res.status(500).send('Server error');
+  }
+});
+
+router.post('/verify-token', auth, (req, res) => {
+  res.json({ valid: true, user: req.user });
 });
 
 export default router;
