@@ -16,8 +16,10 @@ const SessionSchema = new mongoose.Schema({
     tab_switches: { type: Number, default: 0 },
     window_focus_loss: { type: Number, default: 0 },
     camera_issues: { type: Number, default: 0 },
+    audio_issues: { type: Number, default: 0 },
     internet_disconnects: { type: Number, default: 0 },
-    multiple_faces_detected: { type: Number, default: 0 }
+    multiple_faces_detected: { type: Number, default: 0 },
+    page_refreshes: { type: Number, default: 0 }
   }
 });
 
