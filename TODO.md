@@ -1,9 +1,22 @@
-# TODO: Fix Exam Errors
+# TODO: Integrate ML Cheating Detection with System Compliance
 
-## Backend Fixes
-- [ ] Modify `/api/exam/start` route to find exam by examCode and use its _id for session creation.
+## Completed Tasks
+- [ ] Analyze existing code (exam.js, AdvancedSystemCompliance.jsx, Session.js, ExamPage.js)
+- [ ] Brainstorm plan for ML integration
 
-## Frontend Fixes
-- [ ] Update Navbar.js to use correct URL `/api/auth/verify-token` for token verification.
-- [ ] Update ExamPage.js to add Authorization header to exam fetch request.
-- [ ] Update ExamPage.js to use `/api/exam/join/${examId}` endpoint instead of `/api/exam/${examId}` for fetching exam data.
+## Pending Tasks
+- [ ] Install TensorFlow.js dependencies in backend
+- [ ] Create backend/ml/ folder structure
+- [ ] Download and place ML models in backend/ml/models/
+- [ ] Implement backend/ml/utils/faceDetection.js (face verification)
+- [ ] Implement backend/ml/utils/gazeEstimation.js (gaze detection)
+- [ ] Implement backend/ml/utils/objectDetection.js (object detection)
+- [ ] Implement backend/ml/utils/violationCounter.js (count violations, check >5)
+- [ ] Implement backend/ml/utils/mlProcessor.js (main processor)
+- [ ] Implement backend/ml/services/screenshotHandler.js (annotate/save SS on violations)
+- [ ] Implement backend/ml/services/pdfGenerator.js (generate result PDF)
+- [ ] Implement backend/ml/routes/mlRoutes.js (API endpoints)
+- [ ] Update backend/models/Session.js (add ml_violation_count, status)
+- [ ] Integrate ML into backend/routes/exam.js (call mlProcessor on snapshot)
+- [ ] Update frontend/src/components/ExamPage.js (poll for exam end on violations)
+- [ ] Test integration (run exam, trigger violations, check counts/SS/PDF)

@@ -26,8 +26,13 @@ function ExamPage() {
     audio_issues: 0,
     internet_disconnects: 0,
     multiple_faces_detected: 0,
-    page_refreshes: 0
+    page_refreshes: 0,
+    ml_face_mismatch: 0,
+    ml_gaze_away: 0,
+    ml_object_detected: 0,
+    ml_violations: 0
   });
+  const [mlViolationCount, setMlViolationCount] = useState(0);
 
   const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
   const { add: toastAdd } = useToast();
@@ -271,6 +276,18 @@ function ExamPage() {
         newCounts.internet_disconnects += 1;
       } else if (violationMsg.includes('Page refresh')) {
         newCounts.page_refreshes += 1;
+      } else if (violationMsg.includes('face_mismatch')) {
+        newCounts.ml_face_mismatch += 1;
+        newCounts.ml_violations += 1;
+        setMlViolationCount(prev => prev + 1);
+      } else if (violationMsg.includes('gaze_away')) {
+        newCounts.ml_gaze_away += 1;
+        newCounts.ml_violations += 1;
+        setMlViolationCount(prev => prev + 1);
+      } else if (violationMsg.includes('object_detected')) {
+        newCounts.ml_object_detected += 1;
+        newCounts.ml_violations += 1;
+        setMlViolationCount(prev => prev + 1);
       }
       if (sessionId) {
         localStorage.setItem(`violationCounts_${sessionId}`, JSON.stringify(newCounts));

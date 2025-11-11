@@ -19,8 +19,13 @@ const SessionSchema = new mongoose.Schema({
     audio_issues: { type: Number, default: 0 },
     internet_disconnects: { type: Number, default: 0 },
     multiple_faces_detected: { type: Number, default: 0 },
-    page_refreshes: { type: Number, default: 0 }
-  }
+    page_refreshes: { type: Number, default: 0 },
+    ml_face_mismatch: { type: Number, default: 0 },
+    ml_gaze_away: { type: Number, default: 0 },
+    ml_object_detected: { type: Number, default: 0 }
+  },
+  ml_violation_count: { type: Number, default: 0 },
+  ml_screenshots: [{ type: String }] // paths to annotated SS
 });
 
 export default mongoose.model('Session', SessionSchema);

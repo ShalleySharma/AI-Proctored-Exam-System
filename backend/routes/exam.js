@@ -8,6 +8,9 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import auth from '../middleware/auth.js';
+import { processSnapshot } from '../ml/utils/mlProcessor.js';
+import { checkViolations } from '../ml/utils/violationCounter.js';
+import { getFaceEmbedding } from '../ml/utils/faceDetection.js';
 
 const snapshotStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/snapshots/'),
@@ -74,6 +77,22 @@ router.post('/snapshot', uploadSnapshot.single('image'), async (req, res) => {
   try {
     const snapshot = new Snapshot({ session_id: sessionId, image_path, violations: violations ? JSON.parse(violations) : [] });
     await snapshot.save();
+
+    // ML Processing
+    const session = await Session.findById(sessionId);
+    const student = await Student.findById(session.student_id);
+    const referenceEmbedding = student.face_embedding || null; // Assume stored during signup
+    if (referenceEmbedding) {
+      const mlResult = await processSnapshot(image_path, session, referenceEmbedding);
+      await session.save();
+      const check = checkViolations(session);
+      if (check.endExam) {
+        session.status = check.status;
+        await session.save();
+        // Signal frontend to end exam
+      }
+    }
+
     // Save meta to a file for demo:
     const meta = {
       sessionId,
@@ -84,7 +103,7 @@ router.post('/snapshot', uploadSnapshot.single('image'), async (req, res) => {
     };
     const metaFile = path.join('uploads/snapshots', `${req.file.filename}.meta.json`);
     fs.writeFileSync(metaFile, JSON.stringify(meta, null, 2));
-    res.status(201).json({ ok: true, meta });
+    res.status(201).json({ ok: true, meta, mlViolations: session.ml_violation_count, endExam: check?.endExam || false });
   } catch (err) {
     console.error('Snapshot upload error', err);
     res.status(500).json({ ok: false, error: 'Upload failed' });
@@ -349,6 +368,12 @@ router.post('/save-photo', uploadEnterPhoto.single('photo'), async (req, res) =>
   const { studentId, examId } = req.body;
   const image_path = req.file.path;
   try {
+    // Generate face embedding for reference
+    const embedding = await getFaceEmbedding(fs.readFileSync(image_path));
+    if (embedding) {
+      await Student.findByIdAndUpdate(studentId, { face_embedding: embedding });
+    }
+
     // Save meta for demo
     const meta = {
       studentId,
