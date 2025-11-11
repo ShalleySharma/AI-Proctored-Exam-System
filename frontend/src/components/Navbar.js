@@ -32,7 +32,7 @@ export default function Navbar() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/auth/verify-token`, {
+      fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/auth/verify-token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -73,6 +73,14 @@ export default function Navbar() {
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('teacherId');
+    localStorage.removeItem('studentId');
+    window.dispatchEvent(new Event('authChange'));
+    navigate('/');
   };
 
   return (
@@ -121,13 +129,13 @@ export default function Navbar() {
               </li>
             )}
             <li className="nav-item me-4">
-              <a className="nav-link fw-semibold" href="#about" style={{
+              <Link className="nav-link fw-semibold" to="/#about" style={{
                 color: darkMode ? '#000' : '#333333',
                 fontSize: '0.95rem',
                 transition: 'color 0.3s ease'
               }} onMouseEnter={(e) => e.target.style.color = '#00A85A'} onMouseLeave={(e) => e.target.style.color = darkMode ? '#000' : '#333333'}>
                 About
-              </a>
+              </Link>
             </li>
             {isAuthenticated ? (
               <li className="nav-item me-4">
@@ -162,25 +170,16 @@ export default function Navbar() {
             </li>
             {isAuthenticated && (
               <li className="nav-item">
-                <button className="btn btn-danger btn-sm px-3 py-2 fw-semibold" onClick={() => {
-                  authService.logout();
-                  navigate('/');
-                }} style={{
-                  backgroundColor: '#dc3545',
+                <button className="btn btn-outline-danger btn-sm px-3 py-2 fw-semibold" onClick={handleLogout} style={{
                   borderColor: '#dc3545',
-                  color: '#ffffff',
+                  color: '#dc3545',
                   transition: 'all 0.3s ease'
-                }} onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#6c757d';
-                  e.target.style.borderColor = '#6c757d';
-                }} onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = '#dc3545';
-                  e.target.style.borderColor = '#dc3545';
                 }}>
                   Logout
                 </button>
               </li>
             )}
+
           </ul>
         </div>
       </div>

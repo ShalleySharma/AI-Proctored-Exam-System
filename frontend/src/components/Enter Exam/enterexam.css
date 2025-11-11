@@ -15,10 +15,11 @@
   border-radius: 20px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
   overflow: hidden;
-  max-width: 1000px;
+  max-width: 900px;
   width: 100%;
   animation: fadeInUp 0.8s ease-out;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  padding: 30px;
 }
 
 .enter-exam-card:hover {
@@ -27,21 +28,25 @@
 }
 
 .enter-exam-title {
-  font-size: 2.5rem;
+  font-size: 2.8rem;
   font-weight: 700;
   margin-bottom: 15px;
   color: var(--primary-color);
   text-align: center;
   animation: fadeInUp 0.6s ease-out 0.2s both;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .enter-exam-subtitle {
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   color: var(--dark-color);
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 40px;
   opacity: 0.8;
   animation: fadeInUp 0.6s ease-out 0.4s both;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .enter-exam-form {
@@ -50,87 +55,97 @@
 
 .form-row {
   display: flex;
-  gap: 20px;
-  margin-bottom: 25px;
+  gap: 30px;
+  margin-bottom: 35px;
+  justify-content: center;
 }
 
 .form-group {
   flex: 1;
   display: flex;
   flex-direction: column;
+  max-width: 300px;
 }
 
 .form-group label {
   font-weight: 600;
   color: var(--dark-color);
-  margin-bottom: 8px;
-  font-size: 0.95rem;
+  margin-bottom: 10px;
+  font-size: 1rem;
+  text-align: center;
 }
 
 .exam-input {
-  padding: 14px 16px;
+  padding: 16px 18px;
   border: 2px solid #e5e7eb;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 16px;
   font-family: 'Inter', sans-serif;
   transition: all 0.3s ease;
   background: var(--light-color);
   color: var(--dark-color);
+  text-align: center;
+  font-weight: 500;
 }
 
 .exam-input:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-  transform: translateY(-1px);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+  transform: translateY(-2px);
 }
 
 .exam-input.error {
   border-color: #ef4444;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15);
 }
 
 .error-message {
-  color: #ef4444;
-  font-size: 0.85rem;
-  margin-top: 6px;
-  font-weight: 500;
+  color: #dc2626;
+  font-size: 0.9rem;
+  margin-top: 8px;
+  font-weight: 600;
   animation: fadeInUp 0.3s ease-out;
+  text-align: center;
 }
 
 .photo-capture-section {
-  margin-bottom: 30px;
+  margin-bottom: 40px;
   animation: fadeInUp 0.6s ease-out 0.8s both;
+  text-align: center;
 }
 
 .photo-capture-controls {
   display: flex;
   flex-direction: column;
-  gap: 15px;
-  margin-bottom: 20px;
+  gap: 20px;
+  margin-bottom: 25px;
+  align-items: center;
 }
 
 .photo-capture-buttons {
   display: flex;
-  gap: 12px;
+  gap: 15px;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .btn-start-camera,
 .btn-capture,
 .btn-retake {
-  padding: 12px 24px;
+  padding: 14px 28px;
   border: none;
-  border-radius: 12px;
-  font-size: 14px;
+  border-radius: 14px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-width: 140px;
+  gap: 10px;
+  min-width: 160px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .btn-start-camera {
@@ -140,8 +155,8 @@
 
 .btn-start-camera:hover:not(:disabled) {
   background: #4b5563;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(107, 114, 128, 0.3);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(107, 114, 128, 0.4);
 }
 
 .btn-capture {
@@ -151,8 +166,8 @@
 
 .btn-capture:hover:not(:disabled) {
   background: var(--secondary-color);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
 }
 
 .btn-retake {
@@ -162,8 +177,8 @@
 
 .btn-retake:hover {
   background: #047857;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(5, 150, 105, 0.3);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(5, 150, 105, 0.4);
 }
 
 .btn-start-camera:disabled,
@@ -171,6 +186,7 @@
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 .photo-capture-display {
@@ -297,11 +313,12 @@
 
 .btn-enter-exam {
   width: 100%;
-  padding: 16px;
+  max-width: 400px;
+  padding: 18px;
   background: var(--gradient);
   color: var(--light-color);
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 18px;
   font-weight: 600;
   cursor: pointer;
@@ -310,19 +327,21 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  margin-top: 20px;
+  margin: 30px auto 0;
   animation: fadeInUp 0.6s ease-out 1s both;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
 }
 
 .btn-enter-exam:hover:not(:disabled) {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 30px rgba(16, 185, 129, 0.4);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 35px rgba(16, 185, 129, 0.5);
 }
 
 .btn-enter-exam:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
 }
 
 /* Responsive Design */

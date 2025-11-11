@@ -1,5 +1,9 @@
-# TODO: Fix Automatic Logout on Page Refresh
+# TODO: Fix Exam Errors
 
-## Steps to Complete
-- [x] Update `frontend/src/components/Navbar.js` to modify token verification logic: Only log out on 401 status, not on other errors.
-- [ ] Test the fix: Verify behavior on page refresh with valid token, invalid token (401), and network errors.
+## Backend Fixes
+- [ ] Modify `/api/exam/start` route to find exam by examCode and use its _id for session creation.
+
+## Frontend Fixes
+- [ ] Update Navbar.js to use correct URL `/api/auth/verify-token` for token verification.
+- [ ] Update ExamPage.js to add Authorization header to exam fetch request.
+- [ ] Update ExamPage.js to use `/api/exam/join/${examId}` endpoint instead of `/api/exam/${examId}` for fetching exam data.

@@ -17,13 +17,40 @@ const uploadSnapshot = multer({ storage: snapshotStorage });
 
 // Start exam session
 router.post('/start', async (req, res) => {
-  const { studentId, examId } = req.body;
   try {
-    const session = new Session({ student_id: studentId, exam_id: examId, login_time: new Date() });
+    const { studentId, examId } = req.body;
+    console.log("Start exam body:", req.body);
+
+    if (!studentId || !examId || studentId === 'null' || examId === 'null') {
+      return res.status(400).json({ msg: "Missing studentId or examId" });
+    }
+
+    let student;
+    try {
+      student = await Student.findById(studentId);
+    } catch (err) {
+      // If not a valid ObjectId, try finding by roll_no
+      student = await Student.findOne({ roll_no: studentId });
+    }
+    if (!student) return res.status(404).json({ msg: "Student not found" });
+
+    const exam = await Exam.findOne({ examCode: examId });
+    if (!exam) return res.status(404).json({ msg: "Exam not found" });
+
+    const session = new Session({
+      student_id: student._id,
+      exam_id: exam._id,
+      login_time: new Date(),
+    });
+
     await session.save();
-    res.json({ sessionId: session._id });
+    res.status(200).json({ sessionId: session._id });
   } catch (err) {
-    res.status(500).send('Server error');
+    console.error("Error starting exam session:", err);
+    if (err.name === "CastError") {
+      return res.status(400).json({ msg: "Invalid student or exam ID" });
+    }
+    res.status(500).json({ msg: err.message || "Server error" });
   }
 });
 
@@ -98,8 +125,10 @@ router.post('/submit', async (req, res) => {
         tab_switches: violationCounts?.tab_switches || 0,
         window_focus_loss: violationCounts?.window_focus_loss || 0,
         camera_issues: violationCounts?.camera_issues || 0,
+        audio_issues: violationCounts?.audio_issues || 0,
         internet_disconnects: violationCounts?.internet_disconnects || 0,
-        multiple_faces_detected: violationCounts?.multiple_faces_detected || 0
+        multiple_faces_detected: violationCounts?.multiple_faces_detected || 0,
+        page_refreshes: violationCounts?.page_refreshes || 0
       }
     });
     res.json({ msg: 'Exam submitted successfully' });
@@ -136,7 +165,9 @@ router.get('/student-results/:studentId', async (req, res) => {
         windowBlurs: session.violation_counts?.window_focus_loss || 0,
         multipleFaces: session.violation_counts?.multiple_faces_detected || 0,
         noCamera: session.violation_counts?.camera_issues || 0,
-        internetDisconnects: session.violation_counts?.internet_disconnects || 0
+        noAudio: session.violation_counts?.audio_issues || 0,
+        internetDisconnects: session.violation_counts?.internet_disconnects || 0,
+        pageRefreshes: session.violation_counts?.page_refreshes || 0
       };
       // Screenshots URLs
       const screenshots = snapshots.map(s => `http://localhost:5000/${s.image_path}`);

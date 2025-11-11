@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Home from "./components/Home";
 
@@ -19,10 +19,12 @@ import EnterExam from "./components/Enter Exam/enterexam.js";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function AppContent() {
+  const location = useLocation();
+  const showNavbar = !location.pathname.startsWith('/exam');
 
   return (
     <>
-      <Navbar />
+      {showNavbar && <Navbar />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<GetStarted />} />
@@ -32,6 +34,7 @@ function AppContent() {
         <Route path="/teacher-signin" element={<TeacherSignin />} />
         <Route path="/instructions" element={<Instructions />} />
         <Route path="/exam" element={<ExamPage />} />
+        <Route path="/exam/:examId" element={<ExamPage />} />
         <Route path="/teacher-profile" element={<ProtectedRoute teacherOnly={true}><TeacherProfile /></ProtectedRoute>} />
         <Route path="/student-profile" element={<ProtectedRoute><StudentProfile /></ProtectedRoute>} />
         <Route path="/create-exam" element={<ProtectedRoute teacherOnly={true}><CreateExam /></ProtectedRoute>} />

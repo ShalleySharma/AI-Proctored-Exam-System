@@ -23,11 +23,35 @@ function Instructions() {
     }
   };
 
-  const handleStartExam = () => {
+  const handleStartExam = async () => {
     if (cameraAccessible === true) {
       const examId = localStorage.getItem('examId');
       if (examId) {
-        navigate(`/exam/${examId}`);
+        try {
+          // Fetch exam data based on examId
+          const token = localStorage.getItem('token');
+          const response = await fetch(`${process.env.REACT_APP_API_BASE || 'http://localhost:5000'}/api/exam/join/${examId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+              navigate(`/exam/${examId}`, { state: { exam: data.exam } });
+            } else {
+              // If exam not found, navigate without state (will use fallback questions)
+              navigate(`/exam/${examId}`);
+            }
+          } else {
+            // If fetch fails, navigate without state
+            navigate(`/exam/${examId}`);
+          }
+        } catch (error) {
+          console.error('Failed to fetch exam data:', error);
+          // Navigate without state if fetch fails
+          navigate(`/exam/${examId}`);
+        }
       } else {
         navigate('/exam');
       }

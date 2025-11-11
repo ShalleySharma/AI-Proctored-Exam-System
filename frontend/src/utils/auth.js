@@ -17,20 +17,11 @@ axios.interceptors.request.use(
   }
 );
 
-// Handle token expiration
+// Handle token expiration - removed automatic logout to prevent logout on server restart/refresh
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem('token');
-      localStorage.removeItem('teacherId');
-      localStorage.removeItem('studentId');
-      // Redirect to login if on protected page
-      if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
-    }
+    // Still reject the error but don't automatically log out
     return Promise.reject(error);
   }
 );

@@ -63,11 +63,14 @@ const EnterExam = () => {
     // Draw the current video frame to canvas
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+    const imageData = canvas.toDataURL('image/jpeg', 0.8);
     canvas.toBlob((blob) => {
       setPhoto(blob);
     });
 
-    setCapturedImage(canvas.toDataURL('image/jpeg', 0.8));
+    setCapturedImage(imageData);
+    setPhotoData(imageData);
+    setPhotoCaptured(true);
 
     // Stop camera after capture
     if (stream) {
@@ -88,13 +91,13 @@ const EnterExam = () => {
   const validateForm = () => {
     const newErrors = {};
     if (!examId.trim()) {
-      newErrors.examId = 'All fields are mandatory';
+      newErrors.examId = 'Exam ID is required';
     }
     if (!rollNo.trim()) {
-      newErrors.rollNo = 'All fields are mandatory';
+      newErrors.rollNo = 'Roll Number is required';
     }
     if (!photoCaptured) {
-      newErrors.photo = 'Photo is required for verification';
+      newErrors.photo = 'Photo is compulsory for verification';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -138,11 +141,11 @@ const EnterExam = () => {
       }
     } catch (error) {
       console.error('Error entering exam:', error);
-      if (error.response?.status === 400) {
+      if (error.response) {
         if (error.response.data.error === 'invalid_exam') {
-          setErrors({ examId: 'Invalid exam ID' });
+          setErrors({ examId: 'Wrong exam ID' });
         } else if (error.response.data.error === 'invalid_rollno') {
-          setErrors({ rollNo: 'Invalid roll number' });
+          setErrors({ rollNo: 'Wrong roll number' });
         } else {
           toastAdd('Validation failed. Please check your details.');
         }
@@ -298,7 +301,7 @@ const EnterExam = () => {
             type="button"
             className="btn-enter-exam"
             onClick={handleSubmit}
-            disabled={loading || !examId.trim() || !rollNo.trim() || !photoCaptured}
+            disabled={loading || !photoCaptured}
           >
             {loading ? (
               <>

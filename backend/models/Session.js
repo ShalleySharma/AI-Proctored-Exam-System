@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const SessionSchema = new mongoose.Schema({
   student_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' },
-  exam_id: { type: String, required: true },
+  exam_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Exam', required: true },
   login_time: Date,
   logout_time: Date,
   status: { type: String, default: 'in-progress' },

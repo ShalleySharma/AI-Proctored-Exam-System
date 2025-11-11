@@ -143,7 +143,7 @@ function StudentSignup() {
     setIsLoading(true);
     const data = new FormData();
     data.append('name', formData.name);
-    data.append('rollNo', formData.roll_no);
+    data.append('roll_no', formData.roll_no);
     data.append('course', formData.course);
     data.append('year', formData.year);
     data.append('email', formData.email);

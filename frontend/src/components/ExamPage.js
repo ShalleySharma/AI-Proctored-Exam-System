@@ -1,15 +1,17 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useToast } from './ToastContext';
 import { enqueueSnapshot, blobToBase64 } from '../utils/retryQueue';
-import AdvancedSystemCompliance from './AdvancedSystemCompliance';
+import AdvancedSystemCompliance from './AdvancedSystemCompliance.jsx';
 
 function ExamPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+
+  const examId = location.pathname.split('/exam/')[1]; // Extract examId from URL
 
   const [sessionId, setSessionId] = useState(null);
   const [examStarted, setExamStarted] = useState(false);
@@ -21,8 +23,10 @@ function ExamPage() {
     tab_switches: 0,
     window_focus_loss: 0,
     camera_issues: 0,
+    audio_issues: 0,
     internet_disconnects: 0,
-    multiple_faces_detected: 0
+    multiple_faces_detected: 0,
+    page_refreshes: 0
   });
 
   const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
@@ -38,7 +42,7 @@ function ExamPage() {
       const examResults = {
         sessionId,
         studentId: localStorage.getItem('studentId'),
-        examId: exam ? exam.id : 'java-exam-001',
+        examId,
         answers: selectedOptions,
         score: finalScore,
         totalQuestions: questions.length,
@@ -56,86 +60,91 @@ function ExamPage() {
     }
   };
 
+  const startExam = useCallback(async () => {
+    if (examStarted || !examId) return; // Prevent multiple exam starts or if no examId
+
+    const studentId = localStorage.getItem('studentId');
+    console.log('Starting exam with studentId:', studentId, 'examId:', examId);
+
+    if (!studentId || studentId === 'null') {
+      alert('Student ID not found. Please login again.');
+      return;
+    }
+
+    if (!examId || examId === 'null') {
+      alert('Exam ID not found. Please go back and select an exam.');
+      return;
+    }
+
+    try {
+      const res = await axios.post(`${API_BASE}/api/exam/start`, { studentId, examId });
+      console.log('Exam started successfully:', res.data);
+      setSessionId(res.data.sessionId);
+      setExamStarted(true);
+
+      // Load saved violations and counts from localStorage
+      const savedViolations = localStorage.getItem(`proctor_violations_${res.data.sessionId}`);
+      const savedCounts = localStorage.getItem(`violationCounts_${res.data.sessionId}`);
+      if (savedViolations) {
+        setViolations(JSON.parse(savedViolations));
+      }
+      if (savedCounts) {
+        setViolationCounts(JSON.parse(savedCounts));
+      }
+
+      // Add beforeunload listener to prevent refresh and auto-submit
+      window.addEventListener('beforeunload', handleBeforeUnload);
+
+      // Request full screen mode
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.warn('Failed to enter full screen:', err);
+          handleViolation('Failed to enter full screen mode');
+        });
+      } else if (document.documentElement.webkitRequestFullscreen) {
+        document.documentElement.webkitRequestFullscreen();
+      } else if (document.documentElement.msRequestFullscreen) {
+        document.documentElement.msRequestFullscreen();
+      }
+
+      // Listen for full screen changes
+      const handleFullscreenChange = () => {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+          handleViolation('Exited full screen mode');
+          alert('Full screen removed! This is a violation. Please return to full screen mode to continue the exam.');
+          // Attempt to re-enter full screen if possible
+          setTimeout(() => {
+            if (document.documentElement.requestFullscreen) {
+              document.documentElement.requestFullscreen().catch(() => {});
+            } else if (document.documentElement.webkitRequestFullscreen) {
+              document.documentElement.webkitRequestFullscreen();
+            } else if (document.documentElement.msRequestFullscreen) {
+              document.documentElement.msRequestFullscreen();
+            }
+          }, 1000);
+        }
+      };
+
+      document.addEventListener('fullscreenchange', handleFullscreenChange);
+      document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.addEventListener('msfullscreenchange', handleFullscreenChange);
+
+      // Cleanup function
+      return () => {
+        document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.removeEventListener('msfullscreenchange', handleFullscreenChange);
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    } catch (err) {
+      console.error('Failed to start exam:', err);
+      toastAdd(`Failed to start exam: ${err.response?.data || err.message}. Please ensure the backend server is running.`);
+    }
+  }, [examStarted, examId, API_BASE, toastAdd]);
+
   useEffect(() => {
-    const startExam = async () => {
-      if (examStarted) return; // Prevent multiple exam starts
-
-      const studentId = localStorage.getItem('studentId');
-      console.log('Starting exam with studentId:', studentId);
-
-      if (!studentId) {
-        alert('Student ID not found. Please login again.');
-        return;
-      }
-
-      try {
-        const res = await axios.post(`${API_BASE}/api/exam/start`, { studentId, examId: exam ? exam.id : 'java-exam-001' });
-        console.log('Exam started successfully:', res.data);
-        setSessionId(res.data.sessionId);
-        setExamStarted(true);
-
-        // Load saved violations and counts from localStorage
-        const savedViolations = localStorage.getItem(`proctor_violations_${res.data.sessionId}`);
-        const savedCounts = localStorage.getItem(`violationCounts_${res.data.sessionId}`);
-        if (savedViolations) {
-          setViolations(JSON.parse(savedViolations));
-        }
-        if (savedCounts) {
-          setViolationCounts(JSON.parse(savedCounts));
-        }
-
-        // Add beforeunload listener to prevent refresh and auto-submit
-        window.addEventListener('beforeunload', handleBeforeUnload);
-
-        // Request full screen mode
-        if (document.documentElement.requestFullscreen) {
-          document.documentElement.requestFullscreen().catch(err => {
-            console.warn('Failed to enter full screen:', err);
-            handleViolation('Failed to enter full screen mode');
-          });
-        } else if (document.documentElement.webkitRequestFullscreen) {
-          document.documentElement.webkitRequestFullscreen();
-        } else if (document.documentElement.msRequestFullscreen) {
-          document.documentElement.msRequestFullscreen();
-        }
-
-        // Listen for full screen changes
-        const handleFullscreenChange = () => {
-          if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
-            handleViolation('Exited full screen mode');
-            alert('Full screen removed! This is a violation. Please return to full screen mode to continue the exam.');
-            // Attempt to re-enter full screen if possible
-            setTimeout(() => {
-              if (document.documentElement.requestFullscreen) {
-                document.documentElement.requestFullscreen().catch(() => {});
-              } else if (document.documentElement.webkitRequestFullscreen) {
-                document.documentElement.webkitRequestFullscreen();
-              } else if (document.documentElement.msRequestFullscreen) {
-                document.documentElement.msRequestFullscreen();
-              }
-            }, 1000);
-          }
-        };
-
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-        document.addEventListener('msfullscreenchange', handleFullscreenChange);
-
-        // Cleanup function
-        return () => {
-          document.removeEventListener('fullscreenchange', handleFullscreenChange);
-          document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-          document.removeEventListener('msfullscreenchange', handleFullscreenChange);
-          window.removeEventListener('beforeunload', handleBeforeUnload);
-        };
-      } catch (err) {
-        console.error('Failed to start exam:', err);
-        toastAdd(`Failed to start exam: ${err.response?.data || err.message}. Please ensure the backend server is running.`);
-      }
-    };
-
     startExam();
-  }, [examStarted, API_BASE, toastAdd]);
+  }, [startExam]);
 
 
 
@@ -161,7 +170,7 @@ function ExamPage() {
       const examResults = {
         sessionId,
         studentId: localStorage.getItem('studentId'),
-        examId: exam ? exam.id : 'java-exam-001',
+        examId,
         answers: selectedOptions,
         score: finalScore,
         totalQuestions: questions.length,
@@ -181,9 +190,9 @@ function ExamPage() {
         videoRef.current.srcObject = null;
       }
 
-      // Navigate to student dashboard to view results
+      // Navigate to home page
       toastAdd('Time is up! Your exam has been submitted automatically.');
-      navigate('/student-dashboard');
+      navigate('/');
     } catch (error) {
       console.error('Failed to submit exam on timeout:', error);
       // Stop camera and microphone even on error
@@ -192,9 +201,9 @@ function ExamPage() {
         stream.getTracks().forEach(track => track.stop());
         videoRef.current.srcObject = null;
       }
-      // Still navigate to student dashboard even if backend submission fails
+      // Still navigate to home page even if backend submission fails
       toastAdd('Time is up! Your exam has been submitted automatically. (Note: There was an issue saving to server)');
-      navigate('/student-dashboard');
+      navigate('/');
     }
   };
 
@@ -254,10 +263,14 @@ function ExamPage() {
         newCounts.tab_switches += 1;
       } else if (violationMsg.includes('Window') || violationMsg.includes('minimized')) {
         newCounts.window_focus_loss += 1;
-      } else if (violationMsg.includes('Camera') || violationMsg.includes('Microphone')) {
+      } else if (violationMsg.includes('Camera')) {
         newCounts.camera_issues += 1;
+      } else if (violationMsg.includes('Microphone') || violationMsg.includes('Audio')) {
+        newCounts.audio_issues += 1;
       } else if (violationMsg.includes('internet')) {
         newCounts.internet_disconnects += 1;
+      } else if (violationMsg.includes('Page refresh')) {
+        newCounts.page_refreshes += 1;
       }
       if (sessionId) {
         localStorage.setItem(`violationCounts_${sessionId}`, JSON.stringify(newCounts));
@@ -271,129 +284,159 @@ function ExamPage() {
   const [exam, setExam] = useState(null);
   const [questions, setQuestions] = useState([]);
 
-  // Load exam data from navigation state
+  // Load exam data from navigation state or URL params
   useEffect(() => {
     const examData = location.state?.exam;
     if (examData) {
       setExam(examData);
-      setQuestions(examData.questions || []);
+      setQuestions(examData.questions.map(q => ({
+        question: q.questionText,
+        options: q.options,
+        answer: q.correctAnswer
+      })) || []);
       setTimeLeft(examData.duration * 60); // Convert minutes to seconds
     } else {
-      // Fallback to hardcoded questions if no exam data
-      setQuestions([
-        {
-          id: 1,
-          question: "Which of the following is not a primitive data type in Java?",
-          options: [
-            "int",
-            "float",
-            "String",
-            "boolean"
-          ],
-          answer: "String"
-        },
-        {
-          id: 2,
-          question: "What is the correct file extension for Java source files?",
-          options: [
-            ".jav",
-            ".java",
-            ".class",
-            ".jv"
-          ],
-          answer: ".java"
-        },
-        {
-          id: 3,
-          question: "Which method is the entry point for any Java program?",
-          options: [
-            "start()",
-            "main()",
-            "run()",
-            "execute()"
-          ],
-          answer: "main()"
-        },
-        {
-          id: 4,
-          question: "Which keyword is used to inherit a class in Java?",
-          options: [
-            "implements",
-            "extends",
-            "inherits",
-            "override"
-          ],
-          answer: "extends"
-        },
-        {
-          id: 5,
-          question: `What will be the output of the following code?\n\nint a = 10;\nint b = 20;\nSystem.out.println(a + b);`,
-          options: [
-            "30",
-            "1020",
-            "a + b",
-            "Compilation error"
-          ],
-          answer: "30"
-        },
-        {
-          id: 6,
-          question: `What will be the output of this code?\n\nint x = 3;\nint y = 5;\nx += ++y + y++;\nSystem.out.println(x);`,
-          options: [
-            "10",
-            "12",
-            "14",
-            "15"
-          ],
-          answer: "15"
-        },
-        {
-          id: 7,
-          question: "Which of the following statements about Java memory management is TRUE?",
-          options: [
-            "Java requires manual memory deallocation.",
-            "Garbage collection in Java runs on demand.",
-            "Java uses automatic garbage collection for unused objects.",
-            "Java does not use heap memory."
-          ],
-          answer: "Java uses automatic garbage collection for unused objects."
-        },
-        {
-          id: 8,
-          question: `What will the following code print?\n\nclass A {\n    static void display() { System.out.println("A"); }\n}\nclass B extends A {\n    static void display() { System.out.println("B"); }\n}\npublic class Test {\n    public static void main(String[] args) {\n        A obj = new B();\n        obj.display();\n    }\n}`,
-          options: [
-            "A",
-            "B",
-            "AB",
-            "Compilation Error"
-          ],
-          answer: "A"
-        },
-        {
-          id: 9,
-          question: `What is the output of the following code?\n\npublic class Test {\n    public static void main(String[] args) {\n        String s1 = "Java";\n        String s2 = "Ja" + "va";\n        System.out.println(s1 == s2);\n    }\n}`,
-          options: [
-            "true",
-            "false",
-            "Compilation error",
-            "Runtime error"
-          ],
-          answer: "true"
-        },
-        {
-          id: 10,
-          question: `What will the code print?\n\npublic class Test {\n    public static void main(String[] args) {\n        int i = 0;\n        for(System.out.println("Hi"); i < 2; System.out.println(i++));\n    }\n}`,
-          options: [
-            "Hi 0 1",
-            "HiHi",
-            "Hi followed by 0 and 1",
-            "Hi 0 1 (without space)"
-          ],
-          answer: "Hi followed by 0 and 1"
-        }
-      ]);
+      // Try to fetch exam data from URL params
+      const examId = location.pathname.split('/exam/')[1];
+      if (examId) {
+        const fetchExamData = async () => {
+          try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_BASE}/api/exam/join/${examId}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            if (response.data.success && response.data.exam) {
+              setExam(response.data.exam);
+              setQuestions(response.data.exam.questions.map(q => ({
+                question: q.questionText,
+                options: q.options,
+                answer: q.correctAnswer
+              })) || []);
+              setTimeLeft(response.data.exam.duration * 60);
+            }
+          } catch (error) {
+            console.error('Failed to fetch exam data:', error);
+            // Fallback to hardcoded questions if fetch fails
+            setQuestions([
+              {
+                id: 1,
+                question: "Which of the following is not a primitive data type in Java?",
+                options: [
+                  "int",
+                  "float",
+                  "String",
+                  "boolean"
+                ],
+                answer: "String"
+              },
+              {
+                id: 2,
+                question: "What is the correct file extension for Java source files?",
+                options: [
+                  ".jav",
+                  ".java",
+                  ".class",
+                  ".jv"
+                ],
+                answer: ".java"
+              },
+              {
+                id: 3,
+                question: "Which method is the entry point for any Java program?",
+                options: [
+                  "start()",
+                  "main()",
+                  "run()",
+                  "execute()"
+                ],
+                answer: "main()"
+              },
+              {
+                id: 4,
+                question: "Which keyword is used to inherit a class in Java?",
+                options: [
+                  "implements",
+                  "extends",
+                  "inherits",
+                  "override"
+                ],
+                answer: "extends"
+              },
+              {
+                id: 5,
+                question: `What will be the output of the following code?\n\nint a = 10;\nint b = 20;\nSystem.out.println(a + b);`,
+                options: [
+                  "30",
+                  "1020",
+                  "a + b",
+                  "Compilation error"
+                ],
+                answer: "30"
+              },
+              {
+                id: 6,
+                question: `What will be the output of this code?\n\nint x = 3;\nint y = 5;\nx += ++y + y++;\nSystem.out.println(x);`,
+                options: [
+                  "10",
+                  "12",
+                  "14",
+                  "15"
+                ],
+                answer: "15"
+              },
+              {
+                id: 7,
+                question: "Which of the following statements about Java memory management is TRUE?",
+                options: [
+                  "Java requires manual memory deallocation.",
+                  "Garbage collection in Java runs on demand.",
+                  "Java uses automatic garbage collection for unused objects.",
+                  "Java does not use heap memory."
+                ],
+                answer: "Java uses automatic garbage collection for unused objects."
+              },
+              {
+                id: 8,
+                question: `What will the following code print?\n\nclass A {\n    static void display() { System.out.println("A"); }\n}\nclass B extends A {\n    static void display() { System.out.println("B"); }\n}\npublic class Test {\n    public static void main(String[] args) {\n        A obj = new B();\n        obj.display();\n    }\n}`,
+                options: [
+                  "A",
+                  "B",
+                  "AB",
+                  "Compilation Error"
+                ],
+                answer: "A"
+              },
+              {
+                id: 9,
+                question: `What is the output of the following code?\n\npublic class Test {\n    public static void main(String[] args) {\n        String s1 = "Java";\n        String s2 = "Ja" + "va";\n        System.out.println(s1 == s2);\n    }\n}`,
+                options: [
+                  "true",
+                  "false",
+                  "Compilation error",
+                  "Runtime error"
+                ],
+                answer: "true"
+              },
+              {
+                id: 10,
+                question: `What will the code print?\n\npublic class Test {\n    public static void main(String[] args) {\n        int i = 0;\n        for(System.out.println("Hi"); i < 2; System.out.println(i++));\n    }\n}`,
+                options: [
+                  "Hi 0 1",
+                  "HiHi",
+                  "Hi followed by 0 and 1",
+                  "Hi 0 1 (without space)"
+                ],
+                answer: "Hi followed by 0 and 1"
+              }
+            ]);
+          }
+        };
+        fetchExamData();
+      }
     }
-  }, []);
+  }, [location.pathname, API_BASE]);
 
   const handleOptionSelect = (option) => {
     setSelectedOptions({
@@ -420,7 +463,7 @@ function ExamPage() {
       const examResults = {
         sessionId,
         studentId: localStorage.getItem('studentId'),
-        examId: exam ? exam.id : 'java-exam-001',
+        examId,
         answers: selectedOptions,
         score: finalScore,
         totalQuestions: questions.length,
@@ -440,9 +483,9 @@ function ExamPage() {
         videoRef.current.srcObject = null;
       }
 
-      // Navigate to student dashboard to view results
+      // Navigate to home page
       toastAdd('Exam submitted successfully!');
-      navigate('/student-dashboard');
+      navigate('/');
     } catch (error) {
       console.error('Failed to submit exam:', error);
       // Stop camera and microphone even on error
@@ -451,9 +494,9 @@ function ExamPage() {
         stream.getTracks().forEach(track => track.stop());
         videoRef.current.srcObject = null;
       }
-      // Still navigate to student dashboard even if backend submission fails
+      // Still navigate to home page even if backend submission fails
       toastAdd('Exam submitted! (Note: There was an issue saving to server)');
-      navigate('/student-dashboard');
+      navigate('/');
     }
   };
 
@@ -499,13 +542,14 @@ function ExamPage() {
       height: '100vh',
       width: '100vw',
       background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
-      padding: '20px',
-      paddingTop: '80px',
+      padding: '0',
+      margin: '0',
       fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
       position: 'fixed',
       top: 0,
       left: 0,
-      overflow: 'auto'
+      overflow: 'auto',
+      zIndex: 9999
     }}>
       <style>
         {`
@@ -521,7 +565,7 @@ function ExamPage() {
           }
         `}
       </style>
-      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+      <div style={{ width: '100%', padding: '0 20px' }}>
         {/* Top Section: Header and Video/Timer */}
         <div style={{
           display: 'flex',
