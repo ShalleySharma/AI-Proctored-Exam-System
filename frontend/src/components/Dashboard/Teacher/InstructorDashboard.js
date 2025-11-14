@@ -12,21 +12,26 @@ function InstructorDashboard() {
 
   const fetchSessions = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/exam/sessions');
+      const res = await axios.get('http://localhost:5000/api/exam/teacher-sessions', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
       setSessions(res.data);
     } catch (err) {
+      console.error('Failed to fetch sessions:', err);
       alert('Failed to fetch sessions');
     }
   };
 
   const handleViewPDF = (sessionId) => {
-    window.open(`http://localhost:5000/api/exam/result/${sessionId}`, '_blank');
+    window.open(`http://localhost:5000/api/exam/download-pdf/${sessionId}`, '_blank');
   };
 
   const handleDownloadPDF = (sessionId) => {
     const link = document.createElement('a');
-    link.href = `http://localhost:5000/api/exam/result/${sessionId}`;
-    link.download = `ExamResult_${sessionId}.pdf`;
+    link.href = `http://localhost:5000/api/exam/download-pdf/${sessionId}`;
+    link.download = `exam_result_${sessionId}.pdf`;
     link.click();
   };
 
@@ -58,13 +63,14 @@ function InstructorDashboard() {
               <div className="card shadow-sm border-0 rounded-4 mb-2 p-3 timetable-card">
                 <div className="d-flex justify-content-between align-items-center flex-wrap">
                   <div>
-                    <h5 className="mb-1 text-dark">{session.exam_name || 'Exam Name'}</h5>
+                    <h5 className="mb-1 text-dark">{session.exam_id?.title || 'Exam Title'}</h5>
                     <p className="mb-0 text-secondary">
-                      Class: <strong>{session.student_id?.class || '6th'}</strong> |
-                      Student: <strong>{session.student_id?.name || 'Unknown'}</strong>
+                      Subject: <strong>{session.exam_id?.subject || 'N/A'}</strong> |
+                      Student: <strong>{session.student_id?.name || 'Unknown'}</strong> |
+                      Roll No: <strong>{session.student_id?.roll_no || 'N/A'}</strong>
                     </p>
                     <p className="mb-0 small text-muted mt-1">
-                      Time: {session.start_time || '8:00 AM'} - {session.end_time || '8:30 AM'}
+                      Completed At: {new Date(session.completed_at).toLocaleString()}
                     </p>
                   </div>
 

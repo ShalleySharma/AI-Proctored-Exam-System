@@ -8,6 +8,7 @@ function StudentDashboard() {
   const [selectedResult, setSelectedResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pdfGenerating, setPdfGenerating] = useState(false);
+  const [showPDF, setShowPDF] = useState(false);
   const reportRef = useRef(null);
 
   useEffect(() => {
@@ -41,7 +42,13 @@ function StudentDashboard() {
           windowBlurs: 2,
           multipleFaces: 1,
           noCamera: 0,
-          internetDisconnects: 1
+          internetDisconnects: 1,
+          mlFaceMismatch: 0,
+          mlNoFaceDetected: 0,
+          mlMultipleFacesDetected: 0,
+          mlHeadPoseAway: 0,
+          mlGazeAway: 0,
+          mlObjectDetected: 0
         },
         screenshots: [
           'https://via.placeholder.com/200x150?text=Violation+1',
@@ -59,7 +66,7 @@ function StudentDashboard() {
   if (loading) {
     return (
       <div className="container mt-5 text-center">
-        <div className="spinner-border" role="status">
+        <div className="spinner-border text-primary" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
         <p className="mt-3">Loading your exam results...</p>
@@ -79,99 +86,69 @@ function StudentDashboard() {
   // If no specific result is selected, show the list of exams
   if (!selectedResult) {
     return (
-      <div className="container-fluid mt-4" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh', paddingBottom: '50px' }}>
-        <div className="container">
-          <div className="text-center mb-4">
-          <h1 className="text-grey mb-3" style={{ fontWeight: 'bold', textShadow: '2px 2px 4px rgba(0,0,0,0.3)', color: '#6c757d' }}>
-            📊 Dashboard
-          </h1>
-          <div className="mb-4">
-            <button
-              onClick={() => window.location.href = '/join-exam'}
-              className="btn btn-primary btn-lg px-4 py-2 me-3"
-              style={{
-                borderRadius: '25px',
-                fontWeight: 'bold',
-                boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-                border: 'none'
-              }}
-            >
-              <i className="bi bi-plus-circle me-2"></i>
-              Join Exam
-            </button>
-          </div>
-          </div>
+      <div className="container py-4">
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <h2 className="fw-bold text-primary">📊 Student Dashboard</h2>
+          <button
+            onClick={() => window.location.href = '/join-exam'}
+            className="btn btn-primary px-4 py-2"
+            style={{
+              borderRadius: '25px',
+              fontWeight: 'bold',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+              border: 'none'
+            }}
+          >
+            <i className="bi bi-plus-circle me-2"></i>
+            Join Exam
+          </button>
+        </div>
 
-          <div className="row">
-            {examResults.map((result, index) => {
-              const examDate = new Date(result.completedAt);
-              const dayName = examDate.toLocaleDateString('en-US', { weekday: 'long' });
-              const totalViolations = result.violations ? Object.values(result.violations).reduce((a, b) => a + b, 0) : 0;
+        <div className="timetable-container">
+          {examResults.map((result, index) => {
+            const examDate = new Date(result.completedAt);
+            const dayName = examDate.toLocaleDateString('en-US', { weekday: 'long' });
+            const totalViolations = result.violations ? Object.values(result.violations).reduce((a, b) => a + b, 0) : 0;
 
-              return (
-                <div key={index} className="col-md-6 col-lg-4 mb-4">
-                  <div
-                    className="card shadow-lg border-0"
-                    style={{
-                      borderRadius: '20px',
-                      overflow: 'hidden',
-                      cursor: 'pointer',
-                      transition: 'transform 0.3s ease, box-shadow 0.3s ease'
-                    }}
-                    onClick={() => setSelectedResult(result)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-5px)';
-                      e.currentTarget.style.boxShadow = '0 15px 35px rgba(0,0,0,0.2)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.1)';
-                    }}
-                  >
-                    <div className="card-header text-white text-center py-3" style={{ background: 'linear-gradient(45deg, #1e3c72, #2a5298)' }}>
-                      <h5 className="mb-0">{result.examTitle || 'Exam'}</h5>
-                      <small className="text-white-50">{result.examSubject || 'Subject'}</small>
-                    </div>
-                    <div className="card-body text-center p-4">
-                      <div className="mb-3">
-                        <h3 className="text-primary mb-1">{result.score}/{result.totalQuestions}</h3>
-                        <p className="text-muted mb-0">{result.percentage}%</p>
-                      </div>
+            return (
+              <div key={index} className="mb-4">
+                {/* Date Header */}
+                <h6 className="text-muted fw-semibold mb-3">
+                  {examDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} ({dayName})
+                </h6>
 
-                      <div className="row mb-3">
-                        <div className="col-6">
-                          <small className="text-muted d-block">Date</small>
-                          <strong>{examDate.toLocaleDateString()}</strong>
-                        </div>
-                        <div className="col-6">
-                          <small className="text-muted d-block">Day</small>
-                          <strong>{dayName}</strong>
-                        </div>
-                      </div>
-
-                      <div className="mb-3">
-                        <small className="text-muted d-block">Status</small>
-                        <span className={`badge ${result.timeExpired ? 'bg-danger' : 'bg-success'} fs-6`}>
+                {/* Exam Card */}
+                <div className="card shadow-sm border-0 rounded-4 mb-2 p-3 timetable-card">
+                  <div className="d-flex justify-content-between align-items-center flex-wrap">
+                    <div>
+                      <h5 className="mb-1 text-dark">{result.examTitle || 'Exam'}</h5>
+                      <p className="mb-0 text-secondary">
+                        Subject: <strong>{result.examSubject || 'N/A'}</strong> |
+                        Score: <strong>{result.score}/{result.totalQuestions} ({result.percentage}%)</strong>
+                      </p>
+                      <p className="mb-0 small text-muted mt-1">
+                        Status: <span className={`badge ${result.timeExpired ? 'bg-danger' : 'bg-success'}`}>
                           {result.timeExpired ? 'Time Expired' : 'Completed'}
-                        </span>
-                      </div>
-
-                      <div className="mb-3">
-                        <small className="text-muted d-block">Violations</small>
-                        <span className={`badge ${totalViolations > 0 ? 'bg-warning' : 'bg-success'} fs-6`}>
+                        </span> |
+                        Violations: <span className={`badge ${totalViolations > 0 ? 'bg-warning' : 'bg-success'}`}>
                           {totalViolations}
                         </span>
-                      </div>
+                      </p>
+                    </div>
 
-                      <button className="btn btn-success btn-sm w-100" style={{ backgroundColor: '#28a745', borderColor: '#28a745' }}>
+                    <div className="d-flex gap-2 mt-3 mt-md-0">
+                      <button
+                        className="btn btn-outline-primary btn-sm px-3"
+                        onClick={() => setSelectedResult(result)}
+                      >
                         View Details
                       </button>
                     </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -183,49 +160,69 @@ function StudentDashboard() {
   const generatePDF = async () => {
     setPdfGenerating(true);
     try {
-      const element = reportRef.current;
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#667eea'
+      // Download PDF from backend using the new endpoint
+      const response = await axios.get(`http://localhost:5000/api/exam/download-pdf/${selectedResult.sessionId}`, {
+        responseType: 'blob'
       });
 
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `exam_result_${selectedResult.sessionId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (backendError) {
+      console.warn('Backend PDF download failed, falling back to frontend generation:', backendError);
 
-      const imgWidth = 210;
-      const pageHeight = 295;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
+      // Fallback to frontend PDF generation
+      try {
+        const element = reportRef.current;
+        const canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#667eea'
+        });
 
-      let position = 0;
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
 
-      // Add first page
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+        const imgWidth = 210;
+        const pageHeight = 295;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
 
-      // Add additional pages if needed
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
+        let position = 0;
+
+        // Add first page
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
+
+        // Add additional pages if needed
+        while (heightLeft >= 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+
+        // Add header information
+        pdf.setFontSize(16);
+        pdf.setTextColor(40, 40, 40);
+        pdf.text(selectedResult.examTitle || 'Exam', 105, 20, { align: 'center' });
+        pdf.setFontSize(12);
+        pdf.text(`Subject: ${selectedResult.examSubject || 'N/A'}`, 105, 30, { align: 'center' });
+        pdf.text(`Exam Date: ${new Date(selectedResult.completedAt).toLocaleDateString()}`, 105, 40, { align: 'center' });
+        pdf.text(`Score: ${selectedResult.score}/${selectedResult.totalQuestions} (${selectedResult.percentage}%)`, 105, 50, { align: 'center' });
+
+        pdf.save(`Exam_Report_${selectedResult.examTitle}_${new Date().toISOString().split('T')[0]}.pdf`);
+      } catch (frontendError) {
+        console.error('Frontend PDF generation also failed:', frontendError);
+        alert('Error generating PDF. Please try again.');
       }
-
-      // Add header information
-      pdf.setFontSize(16);
-      pdf.setTextColor(40, 40, 40);
-      pdf.text(selectedResult.examTitle || 'Exam', 105, 20, { align: 'center' });
-      pdf.setFontSize(12);
-      pdf.text(`Subject: ${selectedResult.examSubject || 'N/A'}`, 105, 30, { align: 'center' });
-      pdf.text(`Exam Date: ${new Date(selectedResult.completedAt).toLocaleDateString()}`, 105, 40, { align: 'center' });
-      pdf.text(`Score: ${selectedResult.score}/${selectedResult.totalQuestions} (${selectedResult.percentage}%)`, 105, 50, { align: 'center' });
-
-      pdf.save(`Java_Exam_Report_${new Date().toISOString().split('T')[0]}.pdf`);
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Error generating PDF. Please try again.');
     } finally {
       setPdfGenerating(false);
     }
@@ -463,7 +460,42 @@ function StudentDashboard() {
                         <i className="bi bi-people-fill text-info fs-2 me-3"></i>
                         <div>
                           <h6 className="mb-1">Multiple Faces Detected</h6>
-                          <span className="badge bg-info fs-6">{selectedResult.violations.multipleFaces}</span>
+                          <span className="badge bg-info fs-6">{selectedResult.violations.multipleFaces + selectedResult.violations.mlMultipleFacesDetected}</span>
+                        </div>
+                      </div>
+                      <div className="violation-item d-flex align-items-center mb-3 p-3 bg-light rounded">
+                        <i className="bi bi-eye-slash text-warning fs-2 me-3"></i>
+                        <div>
+                          <h6 className="mb-1">Face Mismatch</h6>
+                          <span className="badge bg-warning fs-6">{selectedResult.violations.mlFaceMismatch}</span>
+                        </div>
+                      </div>
+                      <div className="violation-item d-flex align-items-center mb-3 p-3 bg-light rounded">
+                        <i className="bi bi-person-slash text-danger fs-2 me-3"></i>
+                        <div>
+                          <h6 className="mb-1">No Face Detected</h6>
+                          <span className="badge bg-danger fs-6">{selectedResult.violations.mlNoFaceDetected}</span>
+                        </div>
+                      </div>
+                      <div className="violation-item d-flex align-items-center mb-3 p-3 bg-light rounded">
+                        <i className="bi bi-arrows-move text-secondary fs-2 me-3"></i>
+                        <div>
+                          <h6 className="mb-1">Head Pose Away</h6>
+                          <span className="badge bg-secondary fs-6">{selectedResult.violations.mlHeadPoseAway}</span>
+                        </div>
+                      </div>
+                      <div className="violation-item d-flex align-items-center mb-3 p-3 bg-light rounded">
+                        <i className="bi bi-eye text-primary fs-2 me-3"></i>
+                        <div>
+                          <h6 className="mb-1">Gaze Away</h6>
+                          <span className="badge bg-primary fs-6">{selectedResult.violations.mlGazeAway}</span>
+                        </div>
+                      </div>
+                      <div className="violation-item d-flex align-items-center mb-3 p-3 bg-light rounded">
+                        <i className="bi bi-phone text-danger fs-2 me-3"></i>
+                        <div>
+                          <h6 className="mb-1">Prohibited Objects</h6>
+                          <span className="badge bg-danger fs-6">{selectedResult.violations.mlObjectDetected}</span>
                         </div>
                       </div>
                     </div>

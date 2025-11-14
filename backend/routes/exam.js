@@ -11,6 +11,7 @@ import auth from '../middleware/auth.js';
 import { processSnapshot } from '../ml/utils/mlProcessor.js';
 import { checkViolations } from '../ml/utils/violationCounter.js';
 import { getFaceEmbedding } from '../ml/utils/faceDetection.js';
+import cloudinary from '../config/cloudinary.js';
 
 const snapshotStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/snapshots/'),
@@ -75,7 +76,18 @@ router.post('/snapshot', uploadSnapshot.single('image'), async (req, res) => {
   const { sessionId, violations } = req.body;
   const image_path = req.file.path;
   try {
-    const snapshot = new Snapshot({ session_id: sessionId, image_path, violations: violations ? JSON.parse(violations) : [] });
+    // Upload to Cloudinary
+    const cloudinaryResult = await cloudinary.uploader.upload(image_path, {
+      folder: 'exam_snapshots',
+      public_id: `${sessionId}_${Date.now()}`,
+      resource_type: 'image'
+    });
+
+    const snapshot = new Snapshot({
+      session_id: sessionId,
+      image_url: cloudinaryResult.secure_url,
+      violations: violations ? JSON.parse(violations) : []
+    });
     await snapshot.save();
 
     // ML Processing
@@ -93,19 +105,21 @@ router.post('/snapshot', uploadSnapshot.single('image'), async (req, res) => {
       }
     }
 
-    // Save meta to a file for demo:
-    const meta = {
-      sessionId,
-      violations: violations ? JSON.parse(violations) : [],
-      filename: req.file.filename,
-      originalname: req.file.originalname,
-      savedAt: new Date().toISOString()
-    };
-    const metaFile = path.join('uploads/snapshots', `${req.file.filename}.meta.json`);
-    fs.writeFileSync(metaFile, JSON.stringify(meta, null, 2));
-    res.status(201).json({ ok: true, meta, mlViolations: session.ml_violation_count, endExam: check?.endExam || false });
+    // Clean up local file
+    fs.unlinkSync(image_path);
+
+    res.status(201).json({
+      ok: true,
+      image_url: cloudinaryResult.secure_url,
+      mlViolations: session.ml_violation_count,
+      endExam: check?.endExam || false
+    });
   } catch (err) {
     console.error('Snapshot upload error', err);
+    // Clean up local file on error
+    if (fs.existsSync(image_path)) {
+      fs.unlinkSync(image_path);
+    }
     res.status(500).json({ ok: false, error: 'Upload failed' });
   }
 });
@@ -116,6 +130,27 @@ router.get('/sessions', async (req, res) => {
     const sessions = await Session.find().populate('student_id').populate('exam_id');
     res.json(sessions);
   } catch (err) {
+    res.status(500).send('Server error');
+  }
+});
+
+// Get sessions for a teacher's exams (teacher only)
+router.get('/teacher-sessions', auth, async (req, res) => {
+  try {
+    const teacherId = req.user.id;
+    // Find exams created by the teacher
+    const exams = await Exam.find({ createdBy: teacherId }).select('_id');
+    const examIds = exams.map(exam => exam._id);
+
+    // Find sessions for those exams
+    const sessions = await Session.find({ exam_id: { $in: examIds } })
+      .populate('student_id', 'name roll_no')
+      .populate('exam_id', 'title subject')
+      .sort({ completed_at: -1 });
+
+    res.json(sessions);
+  } catch (err) {
+    console.error('Error fetching teacher sessions:', err);
     res.status(500).send('Server error');
   }
 });
@@ -133,25 +168,46 @@ router.get('/snapshots/:sessionId', async (req, res) => {
 router.post('/submit', async (req, res) => {
   const { sessionId, studentId, examId, answers, score, totalQuestions, timeExpired, completedAt, violations, violationCounts } = req.body;
   try {
-    await Session.findByIdAndUpdate(sessionId, {
-      answers,
-      score,
-      total_questions: totalQuestions,
-      time_expired: timeExpired,
-      completed_at: completedAt,
-      violations: violations || [],
-      violation_counts: {
-        tab_switches: violationCounts?.tab_switches || 0,
-        window_focus_loss: violationCounts?.window_focus_loss || 0,
-        camera_issues: violationCounts?.camera_issues || 0,
-        audio_issues: violationCounts?.audio_issues || 0,
-        internet_disconnects: violationCounts?.internet_disconnects || 0,
-        multiple_faces_detected: violationCounts?.multiple_faces_detected || 0,
-        page_refreshes: violationCounts?.page_refreshes || 0
-      }
-    });
-    res.json({ msg: 'Exam submitted successfully' });
+    // Update session with exam results
+    const session = await Session.findById(sessionId).populate('student_id').populate('exam_id');
+    if (!session) {
+      return res.status(404).json({ msg: 'Session not found' });
+    }
+
+    session.answers = answers;
+    session.score = score;
+    session.total_questions = totalQuestions;
+    session.time_expired = timeExpired;
+    session.completed_at = completedAt;
+    session.violations = violations || [];
+    session.violation_counts = {
+      tab_switches: violationCounts?.tab_switches || 0,
+      window_focus_loss: violationCounts?.window_focus_loss || 0,
+      camera_issues: violationCounts?.camera_issues || 0,
+      audio_issues: violationCounts?.audio_issues || 0,
+      internet_disconnects: violationCounts?.internet_disconnects || 0,
+      multiple_faces_detected: violationCounts?.multiple_faces_detected || 0,
+      page_refreshes: violationCounts?.page_refreshes || 0,
+      ml_face_mismatch: violationCounts?.ml_face_mismatch || 0,
+      ml_no_face_detected: violationCounts?.ml_no_face_detected || 0,
+      ml_multiple_faces_detected: violationCounts?.ml_multiple_faces_detected || 0,
+      ml_head_pose_away: violationCounts?.ml_head_pose_away || 0,
+      ml_gaze_away: violationCounts?.ml_gaze_away || 0,
+      ml_object_detected: violationCounts?.ml_object_detected || 0
+    };
+
+    // Generate PDF
+    const snapshots = await Snapshot.find({ session_id: sessionId });
+    const { generateResultPDF } = await import('../ml/services/pdfGenerator.js');
+    const pdfPath = generateResultPDF(session, snapshots);
+
+    // Update session with PDF path
+    session.pdf_path = pdfPath;
+    await session.save();
+
+    res.json({ msg: 'Exam submitted successfully', pdfPath });
   } catch (err) {
+    console.error('Error submitting exam:', err);
     res.status(500).send('Server error');
   }
 });
@@ -186,12 +242,19 @@ router.get('/student-results/:studentId', async (req, res) => {
         noCamera: session.violation_counts?.camera_issues || 0,
         noAudio: session.violation_counts?.audio_issues || 0,
         internetDisconnects: session.violation_counts?.internet_disconnects || 0,
-        pageRefreshes: session.violation_counts?.page_refreshes || 0
+        pageRefreshes: session.violation_counts?.page_refreshes || 0,
+        mlFaceMismatch: session.violation_counts?.ml_face_mismatch || 0,
+        mlNoFaceDetected: session.violation_counts?.ml_no_face_detected || 0,
+        mlMultipleFacesDetected: session.violation_counts?.ml_multiple_faces_detected || 0,
+        mlHeadPoseAway: session.violation_counts?.ml_head_pose_away || 0,
+        mlGazeAway: session.violation_counts?.ml_gaze_away || 0,
+        mlObjectDetected: session.violation_counts?.ml_object_detected || 0
       };
       // Screenshots URLs
-      const screenshots = snapshots.map(s => `http://localhost:5000/${s.image_path}`);
+      const screenshots = snapshots.map(s => s.image_url);
 
       return {
+        sessionId: session._id, // Add sessionId for PDF download
         score: session.score,
         totalQuestions: session.total_questions,
         percentage,
@@ -200,7 +263,8 @@ router.get('/student-results/:studentId', async (req, res) => {
         violations,
         screenshots,
         examTitle: session.exam_id?.title || 'Unknown Exam',
-        examSubject: session.exam_id?.subject || 'Unknown Subject'
+        examSubject: session.exam_id?.subject || 'Unknown Subject',
+        pdfPath: session.pdf_path // Add PDF path for download
       };
     }));
 
@@ -388,6 +452,95 @@ router.post('/save-photo', uploadEnterPhoto.single('photo'), async (req, res) =>
   } catch (err) {
     console.error('Save photo error', err);
     res.status(500).json({ ok: false, error: 'Save failed' });
+  }
+});
+
+// Process ML on image buffer
+router.post('/process-ml', async (req, res) => {
+  try {
+    const { image, sessionId, isReference } = req.body;
+    if (!image || !sessionId) {
+      return res.status(400).json({ error: 'Missing image or sessionId' });
+    }
+
+    // Convert base64 to buffer (handle any image type)
+    const base64Data = image.replace(/^data:image\/[^;]+;base64,/, '');
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+
+    // Save temporarily for processing
+    const tempPath = path.join('uploads', 'temp_' + Date.now() + '.png');
+    fs.writeFileSync(tempPath, imageBuffer);
+
+    // Get session
+    const session = await Session.findById(sessionId);
+    if (!session) {
+      fs.unlinkSync(tempPath);
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const student = await Student.findById(session.student_id);
+
+    if (isReference) {
+      // Capture reference embedding
+      const embedding = await getFaceEmbedding(imageBuffer);
+      if (embedding) {
+        await Student.findByIdAndUpdate(session.student_id, { face_embedding: embedding.embedding });
+        fs.unlinkSync(tempPath);
+        return res.json({ embedding: embedding.embedding });
+      } else {
+        fs.unlinkSync(tempPath);
+        return res.status(400).json({ error: 'Failed to extract face embedding' });
+      }
+    } else {
+      // Normal ML processing for violation detection
+      const referenceEmbedding = student?.face_embedding;
+
+      if (!referenceEmbedding) {
+        fs.unlinkSync(tempPath);
+        return res.status(400).json({ error: 'No reference face embedding found' });
+      }
+
+      // Process with ML
+      const mlResult = await processSnapshot(tempPath, session, referenceEmbedding);
+      await session.save();
+
+      // Check violations
+      const check = checkViolations(session);
+
+      // Clean up
+      fs.unlinkSync(tempPath);
+
+      res.json({
+        violations: mlResult.violations,
+        violationCount: session.ml_violation_count || 0,
+        endExam: check.endExam,
+        status: check.status
+      });
+    }
+  } catch (err) {
+    console.error('ML processing error:', err);
+    res.status(500).json({ error: 'ML processing failed' });
+  }
+});
+
+// Download PDF report
+router.get('/download-pdf/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await Session.findById(sessionId);
+    if (!session || !session.pdf_path) {
+      return res.status(404).json({ msg: 'PDF not found' });
+    }
+
+    const pdfPath = path.resolve(session.pdf_path);
+    if (!fs.existsSync(pdfPath)) {
+      return res.status(404).json({ msg: 'PDF file not found on server' });
+    }
+
+    res.download(pdfPath, `exam_result_${sessionId}.pdf`);
+  } catch (err) {
+    console.error('Error downloading PDF:', err);
+    res.status(500).send('Server error');
   }
 });
 

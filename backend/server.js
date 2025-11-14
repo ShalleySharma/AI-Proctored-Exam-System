@@ -5,6 +5,7 @@ import cors from "cors";
 import fs from "fs";
 import authRoutes from "./routes/auth.js";
 import examRoutes from "./routes/exam.js";
+import mlRoutes from "./ml/routes/mlRoutes.js";
 
 dotenv.config();
 const app = express();
@@ -20,6 +21,7 @@ app.use("/uploads", express.static("uploads"));
 app.use(express.static('../'));
 app.use("/api/auth", authRoutes);
 app.use("/api/exam", examRoutes);
+app.use("/api/ml", mlRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

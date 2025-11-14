@@ -21,11 +21,15 @@ const SessionSchema = new mongoose.Schema({
     multiple_faces_detected: { type: Number, default: 0 },
     page_refreshes: { type: Number, default: 0 },
     ml_face_mismatch: { type: Number, default: 0 },
+    ml_no_face_detected: { type: Number, default: 0 },
+    ml_multiple_faces_detected: { type: Number, default: 0 },
+    ml_head_pose_away: { type: Number, default: 0 },
     ml_gaze_away: { type: Number, default: 0 },
     ml_object_detected: { type: Number, default: 0 }
   },
   ml_violation_count: { type: Number, default: 0 },
-  ml_screenshots: [{ type: String }] // paths to annotated SS
+  ml_screenshots: [{ type: String }], // paths to annotated SS
+  pdf_path: { type: String } // path to generated PDF report
 });
 
 export default mongoose.model('Session', SessionSchema);

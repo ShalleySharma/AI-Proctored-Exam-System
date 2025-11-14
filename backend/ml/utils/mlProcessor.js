@@ -4,28 +4,53 @@ import { detectObjects } from './objectDetection.js';
 import { incrementViolation } from './violationCounter.js';
 import fs from 'fs';
 import path from 'path';
-import * as tf from '@tensorflow/tfjs-node';
+import * as tf from '@tensorflow/tfjs'; // Use CPU version
 
 export const processSnapshot = async (imagePath, session, referenceEmbedding) => {
   const imageBuffer = fs.readFileSync(imagePath);
   const violations = [];
 
   // Face verification
-  const emb = await getFaceEmbedding(imageBuffer);
-  if (!emb || !compareFaces(emb, referenceEmbedding)) {
-    violations.push('face_mismatch');
+  const faceData = await getFaceEmbedding(imageBuffer);
+  if (!faceData) {
+    violations.push('no_face_detected');
+  } else {
+    const { embedding, faceCount, headPose } = faceData;
+
+    // Check for multiple faces
+    if (faceCount > 1) {
+      violations.push('multiple_faces_detected');
+    }
+
+    // Check face match
+    if (!compareFaces(embedding, referenceEmbedding)) {
+      violations.push('face_mismatch');
+    }
+
+    // Check head pose (looking away)
+    if (headPose) {
+      const { yaw, pitch } = headPose;
+      if (Math.abs(yaw) > 30 || Math.abs(pitch) > 20) { // Thresholds for looking away
+        violations.push('head_pose_away');
+        console.log(`🚨 Head pose violation: yaw=${yaw.toFixed(1)}°, pitch=${pitch.toFixed(1)}°`);
+      }
+    }
   }
 
-  // Gaze estimation
-  const gaze = await estimateGaze(imageBuffer);
-  if (gaze === 'away') {
-    violations.push('gaze_away');
+  // Gaze estimation (only if face detected)
+  if (faceData) {
+    const gaze = await estimateGaze(imageBuffer);
+    if (gaze !== 'forward') {
+      violations.push('gaze_away');
+      console.log(`🚨 Gaze violation: looking ${gaze}`);
+    }
   }
 
   // Object detection
   const objects = await detectObjects(imageBuffer);
   if (objects.length > 0) {
     violations.push('object_detected');
+    console.log(`🚨 Object detection violations: ${objects.map(o => o.object).join(', ')}`);
   }
 
   // Update session

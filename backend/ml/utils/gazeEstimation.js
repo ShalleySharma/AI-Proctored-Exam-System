@@ -1,4 +1,4 @@
-import * as tf from '@tensorflow/tfjs-node';
+import * as tf from '@tensorflow/tfjs'; // Use CPU version
 import * as faceLandmarksDetection from '@tensorflow-models/face-landmarks-detection';
 
 let model = null;
@@ -22,18 +22,33 @@ export const estimateGaze = async (imageBuffer) => {
   if (predictions.length === 0) return null;
 
   const lm = predictions[0].keypoints;
-  const nose = lm[1]; // nose tip
+  const h = tensor.shape[0]; // image height
+  const w = tensor.shape[1]; // image width
+
+  // Calculate basic head pose from key points
+  const nose = lm[1];
   const leftEye = lm[33];
   const rightEye = lm[263];
   const chin = lm[152];
 
-  // Simple gaze: check if eyes are looking away from center
-  const eyeMid = { x: (leftEye.x + rightEye.x) / 2, y: (leftEye.y + rightEye.y) / 2 };
-  const faceCenter = { x: nose.x, y: (nose.y + chin.y) / 2 };
+  // Eye center
+  const eyeCenterX = (leftEye.x + rightEye.x) / 2;
+  const eyeCenterY = (leftEye.y + rightEye.y) / 2;
 
-  const dx = eyeMid.x - faceCenter.x;
-  const dy = eyeMid.y - faceCenter.y;
+  // Calculate yaw and pitch (simplified)
+  const yaw = ((nose.x - eyeCenterX) / (rightEye.x - leftEye.x)) * 180 / Math.PI;
+  const pitch = ((nose.y - eyeCenterY) / (chin.y - nose.y)) * 180 / Math.PI;
 
-  if (Math.abs(dx) > 50 || Math.abs(dy) > 50) return 'away';
-  return 'forward';
+  // Determine gaze direction
+  let gazeDirection = 'forward';
+
+  if (Math.abs(yaw) > 25) {
+    gazeDirection = yaw > 0 ? 'right' : 'left';
+  } else if (Math.abs(pitch) > 20) {
+    gazeDirection = pitch > 0 ? 'down' : 'up';
+  }
+
+  console.log(`👁️ Gaze estimation: yaw=${yaw.toFixed(1)}°, pitch=${pitch.toFixed(1)}°, direction=${gazeDirection}`);
+
+  return gazeDirection;
 };

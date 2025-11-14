@@ -33,9 +33,56 @@ function ExamPage() {
     ml_violations: 0
   });
   const [mlViolationCount, setMlViolationCount] = useState(0);
+  const [referenceEmbedding, setReferenceEmbedding] = useState(null);
+  const [mlViolations, setMlViolations] = useState([]);
 
   const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
   const { add: toastAdd } = useToast();
+
+  const handleViolation = (violationMsg) => {
+    setViolations(prev => {
+      const newViolations = [...prev, { message: violationMsg, timestamp: new Date().toISOString() }];
+      return newViolations;
+    });
+    // Update counts based on violation type
+    setViolationCounts(prev => {
+      const newCounts = { ...prev };
+      if (violationMsg.includes('Tab switching')) {
+        newCounts.tab_switches += 1;
+      } else if (violationMsg.includes('Window') || violationMsg.includes('minimized')) {
+        newCounts.window_focus_loss += 1;
+      } else if (violationMsg.includes('Camera')) {
+        newCounts.camera_issues += 1;
+      } else if (violationMsg.includes('Microphone') || violationMsg.includes('Audio')) {
+        newCounts.audio_issues += 1;
+      } else if (violationMsg.includes('internet')) {
+        newCounts.internet_disconnects += 1;
+      } else if (violationMsg.includes('Page refresh')) {
+        newCounts.page_refreshes += 1;
+      } else if (violationMsg.includes('face_mismatch')) {
+        newCounts.ml_face_mismatch += 1;
+        newCounts.ml_violations += 1;
+        setMlViolationCount(prev => prev + 1);
+        toastAdd('⚠️ Face mismatch detected! This is a violation.', 'error');
+      } else if (violationMsg.includes('gaze_away')) {
+        newCounts.ml_gaze_away += 1;
+        newCounts.ml_violations += 1;
+        setMlViolationCount(prev => prev + 1);
+        toastAdd('⚠️ Gaze away detected! This is a violation.', 'error');
+      } else if (violationMsg.includes('object_detected')) {
+        newCounts.ml_object_detected += 1;
+        newCounts.ml_violations += 1;
+        setMlViolationCount(prev => prev + 1);
+        toastAdd('⚠️ Object detected! This is a violation.', 'error');
+      }
+      if (sessionId) {
+        localStorage.setItem(`violationCounts_${sessionId}`, JSON.stringify(newCounts));
+      }
+      return newCounts;
+    });
+    // Capture snapshot with violation type
+    captureSnapshot(violationMsg);
+  };
 
   const handleBeforeUnload = (e) => {
     e.preventDefault();
@@ -100,18 +147,6 @@ function ExamPage() {
       // Add beforeunload listener to prevent refresh and auto-submit
       window.addEventListener('beforeunload', handleBeforeUnload);
 
-      // Request full screen mode
-      if (document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen().catch(err => {
-          console.warn('Failed to enter full screen:', err);
-          handleViolation('Failed to enter full screen mode');
-        });
-      } else if (document.documentElement.webkitRequestFullscreen) {
-        document.documentElement.webkitRequestFullscreen();
-      } else if (document.documentElement.msRequestFullscreen) {
-        document.documentElement.msRequestFullscreen();
-      }
-
       // Listen for full screen changes
       const handleFullscreenChange = () => {
         if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
@@ -134,6 +169,39 @@ function ExamPage() {
       document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
       document.addEventListener('msfullscreenchange', handleFullscreenChange);
 
+      // Capture reference snapshot for face identity
+      setTimeout(async () => {
+        if (videoRef.current && canvasRef.current) {
+          const video = videoRef.current;
+          const canvas = canvasRef.current;
+          const width = video.videoWidth || 640;
+          const height = video.videoHeight || 480;
+          if (width && height) {
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, width, height);
+            canvas.toBlob(async (blob) => {
+              if (blob) {
+                const base64Image = await blobToBase64(blob);
+                try {
+                  const res_ml = await axios.post(`${API_BASE}/api/exam/process-ml`, {
+                    image: base64Image,
+                    sessionId: res.data.sessionId,
+                    isReference: true
+                  });
+                  if (res_ml.data.embedding) {
+                    setReferenceEmbedding(res_ml.data.embedding);
+                  }
+                } catch (err) {
+                  console.error('Failed to capture reference embedding:', err);
+                }
+              }
+            }, 'image/png', 0.8);
+          }
+        }
+      }, 2000); // Wait 2 seconds for video to stabilize
+
       // Cleanup function
       return () => {
         document.removeEventListener('fullscreenchange', handleFullscreenChange);
@@ -147,11 +215,32 @@ function ExamPage() {
     }
   }, [examStarted, examId, API_BASE, toastAdd]);
 
+  const requestFullscreen = useCallback(() => {
+    // Request full screen mode - must be called from user gesture
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.warn('Failed to enter full screen:', err);
+        handleViolation('Failed to enter full screen mode');
+      });
+    } else if (document.documentElement.webkitRequestFullscreen) {
+      document.documentElement.webkitRequestFullscreen();
+    } else if (document.documentElement.msRequestFullscreen) {
+      document.documentElement.msRequestFullscreen();
+    }
+  }, []);
+
+  // Add button to manually request fullscreen
+  const handleStartExam = useCallback(async () => {
+    await startExam();
+    // Request fullscreen after exam starts
+    setTimeout(() => {
+      requestFullscreen();
+    }, 1000);
+  }, [startExam, requestFullscreen]);
+
   useEffect(() => {
     startExam();
   }, [startExam]);
-
-
 
   useEffect(() => {
     if (examStarted && timeLeft > 0) {
@@ -165,6 +254,58 @@ function ExamPage() {
       handleTimeUp();
     }
   }, [examStarted, timeLeft]);
+
+  // Periodic ML detection every 30 seconds during exam
+  useEffect(() => {
+    if (!examStarted || !sessionId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        if (!videoRef.current || !canvasRef.current) return;
+
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        const width = video.videoWidth || 640;
+        const height = video.videoHeight || 480;
+        if (!width || !height) return;
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, width, height);
+
+        canvas.toBlob(async (blob) => {
+          if (!blob) return;
+          const base64Image = await blobToBase64(blob);
+
+          const res = await axios.post(`${API_BASE}/api/exam/process-ml`, {
+            image: base64Image,
+            sessionId
+          });
+
+          if (res.data.violations && res.data.violations.length > 0) {
+            res.data.violations.forEach(violation => {
+              handleViolation(violation);
+
+              // Update mlViolations for UI display
+              let message = '';
+              if (violation === 'face_mismatch') message = 'Face mismatch detected!';
+              else if (violation === 'gaze_away') message = 'Gaze away detected!';
+              else if (violation === 'object_detected') message = 'Object detected!';
+              else message = `${violation} detected!`;
+
+              setMlViolations(prev => [...prev, { message, timestamp: new Date().toISOString() }]);
+            });
+          }
+        }, 'image/jpeg', 0.8);
+      } catch (err) {
+        console.error('Periodic ML detection failed:', err);
+        // Do not interrupt exam on error
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [examStarted, sessionId, API_BASE, handleViolation]);
 
   const handleTimeUp = async () => {
     try {
@@ -195,6 +336,15 @@ function ExamPage() {
         videoRef.current.srcObject = null;
       }
 
+      // Exit full screen mode
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+
       // Navigate to home page
       toastAdd('Time is up! Your exam has been submitted automatically.');
       navigate('/');
@@ -205,6 +355,14 @@ function ExamPage() {
         const stream = videoRef.current.srcObject;
         stream.getTracks().forEach(track => track.stop());
         videoRef.current.srcObject = null;
+      }
+      // Exit full screen mode even on error
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
       }
       // Still navigate to home page even if backend submission fails
       toastAdd('Time is up! Your exam has been submitted automatically. (Note: There was an issue saving to server)');
@@ -254,48 +412,6 @@ function ExamPage() {
         retries: 3
       });
     }, 'image/jpeg', 0.8);
-  };
-
-  const handleViolation = (violationMsg) => {
-    setViolations(prev => {
-      const newViolations = [...prev, { message: violationMsg, timestamp: new Date().toISOString() }];
-      return newViolations;
-    });
-    // Update counts based on violation type
-    setViolationCounts(prev => {
-      const newCounts = { ...prev };
-      if (violationMsg.includes('Tab switching')) {
-        newCounts.tab_switches += 1;
-      } else if (violationMsg.includes('Window') || violationMsg.includes('minimized')) {
-        newCounts.window_focus_loss += 1;
-      } else if (violationMsg.includes('Camera')) {
-        newCounts.camera_issues += 1;
-      } else if (violationMsg.includes('Microphone') || violationMsg.includes('Audio')) {
-        newCounts.audio_issues += 1;
-      } else if (violationMsg.includes('internet')) {
-        newCounts.internet_disconnects += 1;
-      } else if (violationMsg.includes('Page refresh')) {
-        newCounts.page_refreshes += 1;
-      } else if (violationMsg.includes('face_mismatch')) {
-        newCounts.ml_face_mismatch += 1;
-        newCounts.ml_violations += 1;
-        setMlViolationCount(prev => prev + 1);
-      } else if (violationMsg.includes('gaze_away')) {
-        newCounts.ml_gaze_away += 1;
-        newCounts.ml_violations += 1;
-        setMlViolationCount(prev => prev + 1);
-      } else if (violationMsg.includes('object_detected')) {
-        newCounts.ml_object_detected += 1;
-        newCounts.ml_violations += 1;
-        setMlViolationCount(prev => prev + 1);
-      }
-      if (sessionId) {
-        localStorage.setItem(`violationCounts_${sessionId}`, JSON.stringify(newCounts));
-      }
-      return newCounts;
-    });
-    // Capture snapshot with violation type
-    captureSnapshot(violationMsg);
   };
 
   const [exam, setExam] = useState(null);
@@ -500,6 +616,15 @@ function ExamPage() {
         videoRef.current.srcObject = null;
       }
 
+      // Exit full screen mode
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+
       // Navigate to home page
       toastAdd('Exam submitted successfully!');
       navigate('/');
@@ -510,6 +635,14 @@ function ExamPage() {
         const stream = videoRef.current.srcObject;
         stream.getTracks().forEach(track => track.stop());
         videoRef.current.srcObject = null;
+      }
+      // Exit full screen mode even on error
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
       }
       // Still navigate to home page even if backend submission fails
       toastAdd('Exam submitted! (Note: There was an issue saving to server)');
@@ -715,6 +848,36 @@ function ExamPage() {
                   }
                 }}
               />
+            </div>
+            <div style={{ marginTop: '20px' }}>
+              <h5 style={{ color: '#333', marginBottom: '15px' }}>ML Cheat Detection</h5>
+              <div style={{ fontSize: '1rem', lineHeight: '1.6', color: '#555' }}>
+                <p><strong>Face Identity:</strong> {violationCounts.ml_face_mismatch} violations</p>
+                <p><strong>Head Direction:</strong> {violationCounts.ml_gaze_away} violations</p>
+                <p><strong>Eye Gaze and Blinks:</strong> {violationCounts.ml_gaze_away} violations</p>
+                <p><strong>Suspicious Objects:</strong> {violationCounts.ml_object_detected} violations</p>
+              </div>
+              {mlViolations.length > 0 && (
+                <div style={{ marginTop: '10px', color: 'red', fontWeight: 'bold' }}>
+                  {mlViolations.slice(-3).map((violation, idx) => (
+                    <p key={idx} style={{ margin: '5px 0' }}>⚠️ {violation.message}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div style={{ marginTop: '20px' }}>
+              <h5 style={{ color: '#333', marginBottom: '15px' }}>Recent Violations</h5>
+              {violations.length > 0 ? (
+                <div style={{ fontSize: '1rem', lineHeight: '1.6', color: '#555' }}>
+                  {violations.slice(-5).map((violation, idx) => (
+                    <p key={idx} style={{ margin: '5px 0', color: 'red', fontWeight: 'bold' }}>
+                      ⚠️ {violation.message} <small>({new Date(violation.timestamp).toLocaleTimeString()})</small>
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ fontSize: '1rem', color: '#777' }}>No violations detected yet.</p>
+              )}
             </div>
           </div>
 
