@@ -45,25 +45,26 @@ export const detectObjects = async (imageBuffer) => {
     const detectedObjects = [];
     let personCount = 0;
 
-    // Filter predictions based on confidence and specific classes
+    // Filter predictions based on confidence and specific classes (matching Python code)
     const confidenceThreshold = 0.5;
     for (const prediction of predictions) {
       if (prediction.score > confidenceThreshold) {
         const label = prediction.class.toLowerCase();
 
-        // Focus on prohibited objects: cell phone, book, and multiple persons
+        // Focus on prohibited objects: cell phone, book, laptop, and multiple persons
         if (label === 'person') {
           personCount++;
           if (personCount >= 2) {
             detectedObjects.push('multiple_persons_detected');
           }
-        } else if (label === 'cell phone' || label.includes('phone')) {
+        } else if (label === 'cell phone' || label.includes('phone') || label === 'remote') { // Remote might be misclassified phone
           detectedObjects.push('cell phone');
         } else if (label === 'book') {
           detectedObjects.push('book');
+        } else if (label === 'laptop') {
+          detectedObjects.push('laptop');
         }
-        // Note: COCO-SSD may not detect 'cell phone' or 'book' accurately.
-        // For better detection, a custom YOLO model would be needed.
+        // Note: COCO-SSD may not detect all items accurately. For better results, consider YOLOv8 via ONNX or custom model.
       }
     }
 

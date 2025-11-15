@@ -23,8 +23,8 @@ export const processSnapshot = async (imagePath, session, referenceEmbedding) =>
       if (faceResult.faceCount > 1) {
         violations.push('multiple_faces_detected');
       } else if (faceResult.faceCount === 1) {
-        // Check face match with reference (only once per session)
-        if (referenceEmbedding && !compareFaces(faceResult.embedding, referenceEmbedding)) {
+        // Check face match with reference (only once per session, with stricter threshold)
+        if (referenceEmbedding && !compareFaces(faceResult.embedding, referenceEmbedding, 0.7)) {
           if (!session.faceMismatchDetected) {
             session.faceMismatchDetected = true;
             violations.push('face_mismatch');
@@ -41,7 +41,7 @@ export const processSnapshot = async (imagePath, session, referenceEmbedding) =>
       }
     }
 
-    // 2. Gaze estimation
+    // 2. Gaze estimation (updated to match Python thresholds)
     const gazeResult = await estimateGaze(imageBuffer);
     if (gazeResult === 'away') {
       violations.push('gaze_away');

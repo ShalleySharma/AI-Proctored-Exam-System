@@ -7,7 +7,13 @@ const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
 function readQueue(key) {
   try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
 }
-function writeQueue(key, q) { localStorage.setItem(key, JSON.stringify(q || [])); }
+function writeQueue(key, q) {
+  // Limit queue size to prevent localStorage quota exceeded
+  if (q && q.length > 5) {
+    q = q.slice(-5); // Keep only the last 5 items
+  }
+  localStorage.setItem(key, JSON.stringify(q || []));
+}
 
 export async function flushViolationQueue(toastAdd) {
   const q = readQueue(VIOLATION_KEY);

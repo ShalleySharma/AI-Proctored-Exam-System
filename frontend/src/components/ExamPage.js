@@ -30,11 +30,25 @@ function ExamPage() {
     ml_face_mismatch: 0,
     ml_gaze_away: 0,
     ml_object_detected: 0,
+    ml_no_face_detected: 0,
+    ml_multiple_faces_detected: 0,
+    ml_head_pose_away: 0,
     ml_violations: 0
   });
   const [mlViolationCount, setMlViolationCount] = useState(0);
   const [referenceEmbedding, setReferenceEmbedding] = useState(null);
   const [mlViolations, setMlViolations] = useState([]);
+  const [mlViolationCooldowns, setMlViolationCooldowns] = useState({
+    face_mismatch: 0,
+    gaze_away: 0,
+    object_detected: 0,
+    no_face_detected: 0,
+    multiple_faces_detected: 0,
+    head_pose_away: 0
+  });
+  const [identityVerified, setIdentityVerified] = useState(false);
+  const [showViolationAlert, setShowViolationAlert] = useState(false);
+  const [totalCheatingCount, setTotalCheatingCount] = useState(0);
 
   const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
   const { add: toastAdd } = useToast();
@@ -47,6 +61,7 @@ function ExamPage() {
     // Update counts based on violation type
     setViolationCounts(prev => {
       const newCounts = { ...prev };
+      let isMLViolation = false;
       if (violationMsg.includes('Tab switching')) {
         newCounts.tab_switches += 1;
       } else if (violationMsg.includes('Window') || violationMsg.includes('minimized')) {
@@ -63,18 +78,47 @@ function ExamPage() {
         newCounts.ml_face_mismatch += 1;
         newCounts.ml_violations += 1;
         setMlViolationCount(prev => prev + 1);
-        toastAdd('⚠️ Face mismatch detected! This is a violation.', 'error');
+        isMLViolation = true;
+        setTimeout(() => toastAdd('⚠️ Face mismatch detected! This is a violation.', 'error'), 0);
       } else if (violationMsg.includes('gaze_away')) {
         newCounts.ml_gaze_away += 1;
         newCounts.ml_violations += 1;
         setMlViolationCount(prev => prev + 1);
-        toastAdd('⚠️ Gaze away detected! This is a violation.', 'error');
+        isMLViolation = true;
+        setTimeout(() => toastAdd('⚠️ Gaze away detected! This is a violation.', 'error'), 0);
       } else if (violationMsg.includes('object_detected')) {
         newCounts.ml_object_detected += 1;
         newCounts.ml_violations += 1;
         setMlViolationCount(prev => prev + 1);
-        toastAdd('⚠️ Object detected! This is a violation.', 'error');
+        isMLViolation = true;
+        setTimeout(() => toastAdd('⚠️ Object detected! This is a violation.', 'error'), 0);
+      } else if (violationMsg.includes('no_face_detected')) {
+        newCounts.ml_no_face_detected += 1;
+        newCounts.ml_violations += 1;
+        setMlViolationCount(prev => prev + 1);
+        isMLViolation = true;
+        setTimeout(() => toastAdd('⚠️ No face detected! This is a violation.', 'error'), 0);
+      } else if (violationMsg.includes('multiple_faces_detected')) {
+        newCounts.ml_multiple_faces_detected += 1;
+        newCounts.ml_violations += 1;
+        setMlViolationCount(prev => prev + 1);
+        isMLViolation = true;
+        setTimeout(() => toastAdd('⚠️ Multiple faces detected! This is a violation.', 'error'), 0);
+      } else if (violationMsg.includes('head_pose_away')) {
+        newCounts.ml_head_pose_away += 1;
+        newCounts.ml_violations += 1;
+        setMlViolationCount(prev => prev + 1);
+        isMLViolation = true;
+        setTimeout(() => toastAdd('⚠️ Head turned away from screen! This is a violation.', 'error'), 0);
       }
+
+      if (isMLViolation) {
+        setTotalCheatingCount(prev => prev + 1);
+        setShowViolationAlert(true);
+        // Hide alert after 5 seconds
+        setTimeout(() => setShowViolationAlert(false), 5000);
+      }
+
       if (sessionId) {
         localStorage.setItem(`violationCounts_${sessionId}`, JSON.stringify(newCounts));
       }
@@ -119,12 +163,14 @@ function ExamPage() {
     console.log('Starting exam with studentId:', studentId, 'examId:', examId);
 
     if (!studentId || studentId === 'null') {
-      alert('Student ID not found. Please login again.');
+      toastAdd('Student ID not found. Please login again.', 'error');
+      navigate('/login');
       return;
     }
 
     if (!examId || examId === 'null') {
-      alert('Exam ID not found. Please go back and select an exam.');
+      toastAdd('Exam ID not found. Please go back and select an exam.', 'error');
+      navigate('/');
       return;
     }
 
@@ -169,37 +215,43 @@ function ExamPage() {
       document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
       document.addEventListener('msfullscreenchange', handleFullscreenChange);
 
-      // Capture reference snapshot for face identity
+      // Capture reference snapshot for face identity and verify student
       setTimeout(async () => {
-        if (videoRef.current && canvasRef.current) {
-          const video = videoRef.current;
-          const canvas = canvasRef.current;
-          const width = video.videoWidth || 640;
-          const height = video.videoHeight || 480;
-          if (width && height) {
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, width, height);
-            canvas.toBlob(async (blob) => {
-              if (blob) {
-                const base64Image = await blobToBase64(blob);
-                try {
-                  const res_ml = await axios.post(`${API_BASE}/api/exam/process-ml`, {
-                    image: base64Image,
-                    sessionId: res.data.sessionId,
-                    isReference: true
-                  });
-                  if (res_ml.data.embedding) {
-                    setReferenceEmbedding(res_ml.data.embedding);
-                  }
-                } catch (err) {
-                  console.error('Failed to capture reference embedding:', err);
-                }
+        if (!sessionId || !videoRef.current || !canvasRef.current) return;
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        const width = video.videoWidth || 640;
+        const height = video.videoHeight || 480;
+        if (!width || !height) return; // Ensure video has dimensions
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, width, height);
+        canvas.toBlob(async (blob) => {
+          if (blob) {
+            const base64Image = await blobToBase64(blob);
+            try {
+              const res_ml = await axios.post(`${API_BASE}/api/exam/process-ml`, {
+                image: base64Image.replace(/^data:image\/\w+;base64,/, ""),
+                sessionId,
+                isReference: true
+              }, {
+                headers: { "Content-Type": "application/json" },
+                maxBodyLength: Infinity
+              });
+              if (res_ml.data.embedding) {
+                setReferenceEmbedding(res_ml.data.embedding);
+                setIdentityVerified(true); // Identity verified, now start monitoring
+                toastAdd('Identity verified. Starting exam monitoring.', 'success');
+              } else {
+                toastAdd('Identity verification failed. Please ensure your face is visible.', 'error');
               }
-            }, 'image/png', 0.8);
+            } catch (err) {
+              console.error('Failed to capture reference embedding:', err);
+              toastAdd('Identity verification failed. Please try again.', 'error');
+            }
           }
-        }
+        }, 'image/png', 0.8);
       }, 2000); // Wait 2 seconds for video to stabilize
 
       // Cleanup function
@@ -255,19 +307,46 @@ function ExamPage() {
     }
   }, [examStarted, timeLeft]);
 
-  // Periodic ML detection every 30 seconds during exam
+  // Manage ML violation cooldowns
   useEffect(() => {
-    if (!examStarted || !sessionId) return;
+    if (!examStarted) return;
+    const interval = setInterval(() => {
+      setMlViolationCooldowns(prev => {
+        const newCooldowns = { ...prev };
+        Object.keys(newCooldowns).forEach(key => {
+          if (newCooldowns[key] > 0) newCooldowns[key] -= 1;
+        });
+        return newCooldowns;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [examStarted]);
+
+  // Periodic ML detection every 5 seconds during exam (reduced for testing)
+  useEffect(() => {
+    if (!examStarted) {
+      console.log('ML detection not started: examStarted=', examStarted);
+      return;
+    }
+
+    console.log('🚀 Starting ML detection interval every 5 seconds');
 
     const interval = setInterval(async () => {
+      console.log('🔍 Running periodic ML detection...');
       try {
-        if (!videoRef.current || !canvasRef.current) return;
+        if (!videoRef.current || !canvasRef.current || !videoRef.current.srcObject) {
+          console.log('❌ Video, canvas not ready, or no stream');
+          return;
+        }
 
         const video = videoRef.current;
         const canvas = canvasRef.current;
         const width = video.videoWidth || 640;
         const height = video.videoHeight || 480;
-        if (!width || !height) return;
+        if (!width || !height) {
+          console.log('❌ Video dimensions not ready');
+          return;
+        }
 
         canvas.width = width;
         canvas.height = height;
@@ -275,37 +354,55 @@ function ExamPage() {
         ctx.drawImage(video, 0, 0, width, height);
 
         canvas.toBlob(async (blob) => {
-          if (!blob) return;
+          if (!blob) {
+            console.log('❌ Failed to create blob');
+            return;
+          }
           const base64Image = await blobToBase64(blob);
+          console.log('📸 Captured image for ML processing');
 
           const res = await axios.post(`${API_BASE}/api/exam/process-ml`, {
-            image: base64Image,
+            image: base64Image.replace(/^data:image\/\w+;base64,/, ""),
             sessionId
+          }, {
+            headers: { "Content-Type": "application/json" },
+            maxBodyLength: Infinity
           });
 
+          console.log('📡 ML API response:', res.data);
+
           if (res.data.violations && res.data.violations.length > 0) {
+            console.log('🚨 Violations detected:', res.data.violations);
             res.data.violations.forEach(violation => {
+              console.log('⚠️ Processing violation:', violation);
+              console.log('📢 Calling handleViolation for:', violation);
               handleViolation(violation);
 
               // Update mlViolations for UI display
               let message = '';
               if (violation === 'face_mismatch') message = 'Face mismatch detected!';
               else if (violation === 'gaze_away') message = 'Gaze away detected!';
-              else if (violation === 'object_detected') message = 'Object detected!';
-              else message = `${violation} detected!`;
+              else if (violation === 'object_detected') message = 'Suspicious object (phone/book) detected!';
+              else if (violation === 'no_face_detected') message = 'No face detected!';
+              else if (violation === 'multiple_faces_detected') message = 'Multiple faces detected!';
+              else if (violation === 'head_pose_away') message = 'Head turned away from screen!';
+              else message = `${violation.replace(/_/g, ' ')} detected!`;
 
+              console.log('📝 Adding to mlViolations:', message);
               setMlViolations(prev => [...prev, { message, timestamp: new Date().toISOString() }]);
             });
+          } else {
+            console.log('✅ No violations detected');
           }
         }, 'image/jpeg', 0.8);
       } catch (err) {
-        console.error('Periodic ML detection failed:', err);
+        console.error('❌ Periodic ML detection failed:', err);
         // Do not interrupt exam on error
       }
-    }, 30000); // 30 seconds
+    }, 5000); // 5 seconds for testing
 
     return () => clearInterval(interval);
-  }, [examStarted, sessionId, API_BASE, handleViolation]);
+  }, [examStarted, sessionId, API_BASE]);
 
   const handleTimeUp = async () => {
     try {
@@ -701,6 +798,29 @@ function ExamPage() {
       overflow: 'auto',
       zIndex: 9999
     }}>
+      {/* Violation Alert */}
+      {showViolationAlert && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'linear-gradient(135deg, #dc3545, #ff6b6b)',
+          color: 'white',
+          padding: '30px 40px',
+          borderRadius: '15px',
+          fontSize: '1.5rem',
+          fontWeight: 'bold',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+          zIndex: 10000,
+          textAlign: 'center',
+          animation: 'pulse 1s infinite',
+          border: '4px solid rgba(255,255,255,0.3)'
+        }}>
+          <i className="bi bi-exclamation-triangle-fill me-2" style={{ fontSize: '2rem' }}></i>
+          Cheating Detected!
+        </div>
+      )}
       <style>
         {`
           @keyframes glow {
