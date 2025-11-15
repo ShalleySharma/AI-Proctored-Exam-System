@@ -11,6 +11,9 @@ import auth from '../middleware/auth.js';
 import { processSnapshot } from '../ml/utils/mlProcessor.js';
 import { checkViolations } from '../ml/utils/violationCounter.js';
 import { getFaceEmbedding } from '../ml/utils/faceDetection.js';
+import { estimateGaze } from '../ml/utils/gazeEstimation.js';
+import { compareFaces } from '../ml/utils/faceDetection.js';
+import { detectObjects } from '../ml/utils/objectDetection.js';
 import cloudinary from '../config/cloudinary.js';
 
 const snapshotStorage = multer.diskStorage({
@@ -433,9 +436,11 @@ router.post('/save-photo', uploadEnterPhoto.single('photo'), async (req, res) =>
   const image_path = req.file.path;
   try {
     // Generate face embedding for reference
-    const embedding = await getFaceEmbedding(fs.readFileSync(image_path));
-    if (embedding) {
-      await Student.findByIdAndUpdate(studentId, { face_embedding: embedding });
+    const faceResult = await getFaceEmbedding(fs.readFileSync(image_path));
+    if (faceResult && faceResult.embedding) {
+      await Student.findByIdAndUpdate(studentId, { face_embedding: faceResult.embedding });
+    } else {
+      return res.status(400).json({ ok: false, error: 'Could not generate face embedding from photo' });
     }
 
     // Save meta for demo
@@ -455,23 +460,35 @@ router.post('/save-photo', uploadEnterPhoto.single('photo'), async (req, res) =>
   }
 });
 
-// Process ML on image buffer
 router.post('/process-ml', async (req, res) => {
   try {
     const { image, sessionId, isReference } = req.body;
-    if (!image || !sessionId) {
+
+    if (!sessionId || !image) {
       return res.status(400).json({ error: 'Missing image or sessionId' });
     }
 
-    // Convert base64 to buffer (handle any image type)
-    const base64Data = image.replace(/^data:image\/[^;]+;base64,/, '');
-    const imageBuffer = Buffer.from(base64Data, 'base64');
+    // Demo mode
+    if (sessionId === 'demo') {
+      if (isReference) {
+        return res.json({ ok: true, embedding: { embedding: Array(128).fill(0.1) } });
+      }
+      const violations = ['no_face_detected', 'multiple_faces_detected', 'face_mismatch', 'head_pose_away', 'gaze_away'];
+      return res.json({
+        ok: true,
+        violations: violations,
+        violationCount: violations.length,
+        endExam: false
+      });
+    }
 
-    // Save temporarily for processing
-    const tempPath = path.join('uploads', 'temp_' + Date.now() + '.png');
+    // Base64 → buffer (image is already without prefix)
+    const imageBuffer = Buffer.from(image, 'base64');
+
+    // Temp save
+    const tempPath = path.join('uploads', `temp_${Date.now()}.png`);
     fs.writeFileSync(tempPath, imageBuffer);
 
-    // Get session
     const session = await Session.findById(sessionId);
     if (!session) {
       fs.unlinkSync(tempPath);
@@ -480,43 +497,94 @@ router.post('/process-ml', async (req, res) => {
 
     const student = await Student.findById(session.student_id);
 
+    // ----------- Reference Capture ------------
     if (isReference) {
-      // Capture reference embedding
-      const embedding = await getFaceEmbedding(imageBuffer);
-      if (embedding) {
-        await Student.findByIdAndUpdate(session.student_id, { face_embedding: embedding.embedding });
-        fs.unlinkSync(tempPath);
-        return res.json({ embedding: embedding.embedding });
-      } else {
-        fs.unlinkSync(tempPath);
-        return res.status(400).json({ error: 'Failed to extract face embedding' });
-      }
-    } else {
-      // Normal ML processing for violation detection
-      const referenceEmbedding = student?.face_embedding;
+      // Generate real face embedding for reference
+      const faceResult = await getFaceEmbedding(imageBuffer);
 
-      if (!referenceEmbedding) {
+      if (!faceResult || !faceResult.embedding) {
         fs.unlinkSync(tempPath);
-        return res.status(400).json({ error: 'No reference face embedding found' });
+        return res.status(400).json({ error: 'Could not generate face embedding from reference image' });
       }
 
-      // Process with ML
-      const mlResult = await processSnapshot(tempPath, session, referenceEmbedding);
-      await session.save();
-
-      // Check violations
-      const check = checkViolations(session);
-
-      // Clean up
-      fs.unlinkSync(tempPath);
-
-      res.json({
-        violations: mlResult.violations,
-        violationCount: session.ml_violation_count || 0,
-        endExam: check.endExam,
-        status: check.status
+      await Student.findByIdAndUpdate(session.student_id, {
+        face_embedding: faceResult.embedding
       });
+
+      fs.unlinkSync(tempPath);
+      return res.json({ ok: true, embedding: faceResult.embedding });
     }
+
+    // ----------- Normal ML snapshot ------------
+    console.log('🔍 Processing ML snapshot for session:', sessionId);
+
+    // Use real ML processing instead of random violations
+    const violations = [];
+
+    try {
+      // 1. Face detection and analysis
+      const faceResult = await getFaceEmbedding(imageBuffer);
+
+      if (!faceResult) {
+        violations.push('no_face_detected');
+      } else {
+        // Check for multiple faces
+        if (faceResult.faceCount > 1) {
+          violations.push('multiple_faces_detected');
+        } else if (faceResult.faceCount === 1) {
+          // Check face match with reference (only once per session)
+          const student = await Student.findById(session.student_id);
+          if (student && student.face_embedding && !compareFaces(faceResult.embedding, student.face_embedding)) {
+            if (!session.faceMismatchDetected) {
+              session.faceMismatchDetected = true;
+              violations.push('face_mismatch');
+            }
+          }
+
+          // Check head pose (more conservative thresholds)
+          if (faceResult.headPose) {
+            const { yaw, pitch } = faceResult.headPose;
+            if (Math.abs(yaw) > 45 || Math.abs(pitch) > 45) {
+              violations.push('head_pose_away');
+            }
+          }
+        }
+      }
+
+      // 2. Gaze estimation
+      const gazeResult = await estimateGaze(imageBuffer);
+      if (gazeResult === 'away') {
+        violations.push('gaze_away');
+      }
+
+      // 3. Object detection
+      const detectedObjects = await detectObjects(imageBuffer);
+      if (detectedObjects.length > 0) {
+        violations.push(...detectedObjects);
+      }
+
+    } catch (mlError) {
+      console.error('❌ ML processing error:', mlError);
+      // Continue without adding violations on ML error
+    }
+
+    // Update session violation count
+    session.ml_violation_count = (session.ml_violation_count || 0) + violations.length;
+    await session.save();
+
+    const check = checkViolations(session);
+
+    console.log('✅ ML processing completed, violations:', violations.length, 'total ML violations:', session.ml_violation_count);
+
+    fs.unlinkSync(tempPath);
+
+    res.json({
+      ok: true,
+      violations: violations,
+      violationCount: session.ml_violation_count,
+      endExam: check.endExam || false
+    });
+
   } catch (err) {
     console.error('ML processing error:', err);
     res.status(500).json({ error: 'ML processing failed' });

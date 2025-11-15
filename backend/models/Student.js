@@ -8,6 +8,7 @@ const StudentSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   password: String,
   photo_path: String,
+  face_embedding: [Number], // Array of numbers for face embedding
   created_at: { type: Date, default: Date.now }
 });
 

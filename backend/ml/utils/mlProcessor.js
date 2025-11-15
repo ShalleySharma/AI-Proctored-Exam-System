@@ -7,59 +7,66 @@ import path from 'path';
 import * as tf from '@tensorflow/tfjs'; // Use CPU version
 
 export const processSnapshot = async (imagePath, session, referenceEmbedding) => {
+  console.log('🔍 Starting ML processing for snapshot...');
   const imageBuffer = fs.readFileSync(imagePath);
   const violations = [];
 
-  // Face verification
-  const faceData = await getFaceEmbedding(imageBuffer);
-  if (!faceData) {
-    violations.push('no_face_detected');
-  } else {
-    const { embedding, faceCount, headPose } = faceData;
+  try {
+    // 1. Face detection and analysis
+    const faceResult = await getFaceEmbedding(imageBuffer);
 
-    // Check for multiple faces
-    if (faceCount > 1) {
-      violations.push('multiple_faces_detected');
-    }
+    if (!faceResult) {
+      console.log('❌ Face detection failed');
+      violations.push('no_face_detected');
+    } else {
+      // Check for multiple faces
+      if (faceResult.faceCount > 1) {
+        violations.push('multiple_faces_detected');
+      } else if (faceResult.faceCount === 1) {
+        // Check face match with reference (only once per session)
+        if (referenceEmbedding && !compareFaces(faceResult.embedding, referenceEmbedding)) {
+          if (!session.faceMismatchDetected) {
+            session.faceMismatchDetected = true;
+            violations.push('face_mismatch');
+          }
+        }
 
-    // Check face match
-    if (!compareFaces(embedding, referenceEmbedding)) {
-      violations.push('face_mismatch');
-    }
-
-    // Check head pose (looking away)
-    if (headPose) {
-      const { yaw, pitch } = headPose;
-      if (Math.abs(yaw) > 30 || Math.abs(pitch) > 20) { // Thresholds for looking away
-        violations.push('head_pose_away');
-        console.log(`🚨 Head pose violation: yaw=${yaw.toFixed(1)}°, pitch=${pitch.toFixed(1)}°`);
+        // Check head pose (more conservative thresholds)
+        if (faceResult.headPose) {
+          const { yaw, pitch } = faceResult.headPose;
+          if (Math.abs(yaw) > 45 || Math.abs(pitch) > 45) { // 45 degrees threshold
+            violations.push('head_pose_away');
+          }
+        }
       }
     }
-  }
 
-  // Gaze estimation (only if face detected)
-  if (faceData) {
-    const gaze = await estimateGaze(imageBuffer);
-    if (gaze !== 'forward') {
+    // 2. Gaze estimation
+    const gazeResult = await estimateGaze(imageBuffer);
+    if (gazeResult === 'away') {
       violations.push('gaze_away');
-      console.log(`🚨 Gaze violation: looking ${gaze}`);
     }
-  }
 
-  // Object detection
-  const objects = await detectObjects(imageBuffer);
-  if (objects.length > 0) {
-    violations.push('object_detected');
-    console.log(`🚨 Object detection violations: ${objects.map(o => o.object).join(', ')}`);
-  }
+    // 3. Object detection
+    const detectedObjects = await detectObjects(imageBuffer);
+    if (detectedObjects.length > 0) {
+      violations.push('object_detected');
+    }
 
-  // Update session
-  violations.forEach(type => incrementViolation(session, type));
+    console.log(`📋 ML processing completed: ${violations.length} violations detected - ${violations.join(', ')}`);
 
-  // Annotate and save SS if violations
-  if (violations.length > 0) {
-    const annotatedPath = await annotateScreenshot(imagePath, violations);
-    session.ml_screenshots.push(annotatedPath);
+    // Update session violation counts
+    violations.forEach(type => incrementViolation(session, type));
+
+    // Annotate and save screenshot if violations detected
+    if (violations.length > 0) {
+      const annotatedPath = await annotateScreenshot(imagePath, violations);
+      session.ml_screenshots.push(annotatedPath);
+    }
+
+  } catch (err) {
+    console.error('❌ Error in ML processing:', err);
+    // On error, don't add violations but log the issue
   }
 
   return { violations, session };

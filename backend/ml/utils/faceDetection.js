@@ -1,4 +1,5 @@
 import * as tf from '@tensorflow/tfjs'; // Use CPU version to avoid native addon issues
+import sharp from 'sharp';
 import * as faceLandmarksDetection from '@tensorflow-models/face-landmarks-detection';
 
 let model = null;
@@ -8,15 +9,20 @@ let model = null;
  */
 export const loadFaceModel = async () => {
   if (!model) {
-    console.log("Loading face landmarks model...");
-    model = await faceLandmarksDetection.createDetector(
-      faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
-      {
-        runtime: 'tfjs',
-        refineLandmarks: true,
-      }
-    );
-    console.log("✅ Face model loaded successfully.");
+    console.log("🔄 Loading face landmarks model...");
+    try {
+      model = await faceLandmarksDetection.createDetector(
+        faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
+        {
+          runtime: 'tfjs',
+          refineLandmarks: true,
+        }
+      );
+      console.log("✅ Face model loaded successfully.");
+    } catch (error) {
+      console.error("❌ Failed to load face model:", error);
+      throw error;
+    }
   }
   return model;
 };
@@ -28,44 +34,97 @@ export const loadFaceModel = async () => {
  */
 export const getFaceEmbedding = async (imageBuffer) => {
   try {
-    const detector = await loadFaceModel();
-
-    // Decode image to tensor
-    const tensor = tf.node.decodeImage(imageBuffer, 3);
-
-    // Estimate face landmarks
-    const predictions = await detector.estimateFaces(tensor);
-    tensor.dispose();
-
-    if (!predictions || predictions.length === 0) {
-      console.log("⚠️ No face detected.");
+    const model = await loadFaceModel();
+    if (!model) {
+      console.error("❌ Face model not loaded");
       return null;
     }
 
-    const faceCount = predictions.length;
+    // Convert buffer to tensor using Sharp for proper decoding
+    const { data, info } = await sharp(imageBuffer)
+      .resize(640, 480, { fit: 'inside' })
+      .raw()
+      .toBuffer({ resolveWithObject: true });
 
-    if (faceCount > 1) {
-      console.log(`⚠️ Multiple faces detected: ${faceCount}`);
+    const tensor = tf.tensor3d(new Uint8Array(data), [info.height, info.width, info.channels]);
+    const predictions = await model.estimateFaces(tensor);
+
+    if (!predictions || predictions.length === 0) {
+      console.log("🔍 No faces detected");
+      return { embedding: null, faceCount: 0, headPose: null };
     }
 
-    // Extract 3D keypoints (x, y, z) from first face
-    const landmarks = predictions[0].keypoints;
-    const embedding = landmarks.map(lm => [lm.x, lm.y, lm.z]).flat();
+    if (predictions.length > 1) {
+      console.log(`🔍 Multiple faces detected: ${predictions.length}`);
+      return { embedding: null, faceCount: predictions.length, headPose: null };
+    }
 
-    // Normalize embedding for better comparison
-    const norm = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
-    const normalizedEmbedding = embedding.map(val => val / norm);
+    // Get face landmarks
+    const face = predictions[0];
+    const landmarks = face.keypoints;
 
-    // Calculate head pose (simplified)
+    // Calculate head pose
     const headPose = calculateHeadPose(landmarks);
 
+    // Create embedding from all facial landmarks (improved accuracy)
+    // Use all 468 landmarks for better face recognition - following Python implementation
+    const embedding = [];
+    landmarks.forEach(lm => {
+      embedding.push(lm.x, lm.y, lm.z || 0);
+    });
+
+    // Don't normalize here - normalization happens during cosine similarity comparison
+    // This matches the Python implementation approach
+
+    console.log(`✅ Face embedding generated, ${embedding.length} dimensions`);
+
+    tensor.dispose();
+
     return {
-      embedding: normalizedEmbedding,
-      faceCount,
-      headPose
+      embedding: embedding,
+      faceCount: 1,
+      headPose: headPose
     };
   } catch (err) {
     console.error("❌ Error generating face embedding:", err);
+    return null;
+  }
+};
+
+/**
+ * Detects faces and returns face count and annotated frame info
+ * @param {Buffer} imageBuffer - Raw image buffer
+ * @returns {Promise<{faceCount: number, annotatedFrame?: object} | null>}
+ */
+export const detectFace = async (imageBuffer) => {
+  try {
+    const model = await loadFaceModel();
+    if (!model) {
+      console.error("❌ Face model not loaded");
+      return null;
+    }
+
+    // Convert buffer to tensor using Sharp
+    const { data, info } = await sharp(imageBuffer)
+      .resize(640, 480, { fit: 'inside' })
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    const tensor = tf.tensor3d(new Uint8Array(data), [info.height, info.width, info.channels]);
+    const predictions = await model.estimateFaces(tensor);
+
+    const faceCount = predictions ? predictions.length : 0;
+
+    console.log(`🔍 Face detection completed - ${faceCount} faces detected`);
+
+    tensor.dispose();
+
+    return {
+      faceCount,
+      annotatedFrame: null // Could add annotation logic if needed
+    };
+  } catch (err) {
+    console.error("❌ Error detecting faces:", err);
     return null;
   }
 };
@@ -75,10 +134,13 @@ export const getFaceEmbedding = async (imageBuffer) => {
  * @param {number[]} emb1
  * @param {number[]} emb2
  * @param {number} threshold - higher = stricter match (default: 0.6)
- * @returns {boolean}
+ * @returns {boolean} - true if faces match (similarity >= threshold)
  */
 export const compareFaces = (emb1, emb2, threshold = 0.7) => {
-  if (!emb1 || !emb2) return false;
+  if (!emb1 || !emb2 || emb1.length !== emb2.length) {
+    console.log("🔹 Face comparison failed: invalid embeddings");
+    return false;
+  }
 
   // Cosine similarity (better than Euclidean distance for face embeddings)
   const dotProduct = emb1.reduce((sum, val, i) => sum + val * emb2[i], 0);
@@ -86,8 +148,12 @@ export const compareFaces = (emb1, emb2, threshold = 0.7) => {
   const norm2 = Math.sqrt(emb2.reduce((sum, val) => sum + val * val, 0));
   const similarity = dotProduct / (norm1 * norm2);
 
-  console.log("🔹 Face similarity:", similarity.toFixed(4));
-  return similarity > threshold;
+  console.log(`🔹 Face similarity: ${similarity.toFixed(4)} (threshold: ${threshold})`);
+
+  // Return true if similarity is above threshold (faces match)
+  // Note: Current embedding method is basic landmark-based.
+  // For production, use a proper face recognition model like FaceNet.
+  return similarity >= threshold;
 };
 
 /**

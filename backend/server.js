@@ -16,7 +16,7 @@ const UPLOAD_DIR = 'uploads/snapshots';
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use("/uploads", express.static("uploads"));
 app.use(express.static('../'));
 app.use("/api/auth", authRoutes);
