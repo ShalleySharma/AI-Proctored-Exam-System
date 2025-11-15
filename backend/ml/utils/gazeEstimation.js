@@ -89,12 +89,12 @@ export const estimateGaze = async (imageBuffer) => {
     // Pitch: vertical rotation (up-down tilt)
     const pitch = (nose.y - eyeCenterY) * 180 / Math.PI;
 
-    // Determine gaze direction based on head pose
+    // Determine gaze direction based on head pose with more conservative thresholds
     let gazeDirection = 'center';
 
-    if (Math.abs(yaw) > 15) {
+    if (Math.abs(yaw) > 30) { // Increased from 15 to 30 degrees
       gazeDirection = yaw > 0 ? 'right' : 'left';
-    } else if (Math.abs(pitch) > 15) {
+    } else if (Math.abs(pitch) > 30) { // Increased from 15 to 30 degrees
       gazeDirection = pitch > 0 ? 'down' : 'up';
     }
 

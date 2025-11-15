@@ -34,7 +34,7 @@ export const processSnapshot = async (imagePath, session, referenceEmbedding) =>
         // Check head pose (more conservative thresholds)
         if (faceResult.headPose) {
           const { yaw, pitch } = faceResult.headPose;
-          if (Math.abs(yaw) > 45 || Math.abs(pitch) > 45) { // 45 degrees threshold
+          if (Math.abs(yaw) > 60 || Math.abs(pitch) > 60) { // Increased to 60 degrees threshold
             violations.push('head_pose_away');
           }
         }

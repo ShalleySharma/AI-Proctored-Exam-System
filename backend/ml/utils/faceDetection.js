@@ -133,10 +133,10 @@ export const detectFace = async (imageBuffer) => {
  * Compare two face embeddings using cosine similarity
  * @param {number[]} emb1
  * @param {number[]} emb2
- * @param {number} threshold - higher = stricter match (default: 0.6)
+ * @param {number} threshold - higher = stricter match (default: 0.5)
  * @returns {boolean} - true if faces match (similarity >= threshold)
  */
-export const compareFaces = (emb1, emb2, threshold = 0.7) => {
+export const compareFaces = (emb1, emb2, threshold = 0.5) => {
   if (!emb1 || !emb2 || emb1.length !== emb2.length) {
     console.log("🔹 Face comparison failed: invalid embeddings");
     return false;
