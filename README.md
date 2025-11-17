@@ -169,15 +169,6 @@ Contributions are welcome! Please follow these steps:
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
-
-## License
-
-This project is licensed under the ISC License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-For support or questions, please contact support@proctoringsystem.com
-
 ---
 
 **Note:** This system is designed for educational purposes. Ensure compliance with privacy laws and regulations when implementing in production environments.
