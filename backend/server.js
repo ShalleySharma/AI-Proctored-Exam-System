@@ -1,13 +1,13 @@
 import express from "express";
 import connectDB from "./config/db.js";
-import dotenv from "dotenv";
+import { config } from "@dotenvx/dotenvx";
 import cors from "cors";
 import fs from "fs";
 import authRoutes from "./routes/auth.js";
 import examRoutes from "./routes/exam.js";
 import mlRoutes from "./ml/routes/mlRoutes.js";
 
-dotenv.config();
+config();
 const app = express();
 connectDB();
 

@@ -1,10 +1,6 @@
-import { getFaceEmbedding, compareFaces } from './faceDetection.js';
-import { estimateGaze } from './gazeEstimation.js';
-import { detectObjects } from './objectDetection.js';
-import { incrementViolation } from './violationCounter.js';
+import { detectObjects } from './pythonObjectDetection.js';
 import fs from 'fs';
 import path from 'path';
-import * as tf from '@tensorflow/tfjs'; // Use CPU version
 
 export const processSnapshot = async (imagePath, session, referenceEmbedding) => {
   console.log('🔍 Starting ML processing for snapshot...');
@@ -12,56 +8,38 @@ export const processSnapshot = async (imagePath, session, referenceEmbedding) =>
   const violations = [];
 
   try {
-    // 1. Face detection and analysis
-    const faceResult = await getFaceEmbedding(imageBuffer);
+    console.log('🔍 Starting ML processing pipeline...');
 
-    if (!faceResult) {
-      console.log('❌ Face detection failed');
-      violations.push('no_face_detected');
-    } else {
-      // Check for multiple faces
-      if (faceResult.faceCount > 1) {
-        violations.push('multiple_faces_detected');
-      } else if (faceResult.faceCount === 1) {
-        // Check face match with reference (only once per session, with stricter threshold)
-        if (referenceEmbedding && !compareFaces(faceResult.embedding, referenceEmbedding, 0.7)) {
-          if (!session.faceMismatchDetected) {
-            session.faceMismatchDetected = true;
-            violations.push('face_mismatch');
-          }
-        }
-
-        // Check head pose (more conservative thresholds)
-        if (faceResult.headPose) {
-          const { yaw, pitch } = faceResult.headPose;
-          if (Math.abs(yaw) > 60 || Math.abs(pitch) > 60) { // Increased to 60 degrees threshold
-            violations.push('head_pose_away');
-          }
-        }
+    // Call Python ML service for all detections
+    try {
+      const mlResult = await detectObjects(imageBuffer);
+      if (mlResult.violations && mlResult.violations.length > 0) {
+        violations.push(...mlResult.violations);
+        mlResult.violations.forEach(violation => {
+          console.log(`🚨 Violation detected: ${violation}`);
+        });
       }
-    }
-
-    // 2. Gaze estimation (updated to match Python thresholds)
-    const gazeResult = await estimateGaze(imageBuffer);
-    if (gazeResult === 'away') {
-      violations.push('gaze_away');
-    }
-
-    // 3. Object detection
-    const detectedObjects = await detectObjects(imageBuffer);
-    if (detectedObjects.length > 0) {
-      violations.push('object_detected');
+    } catch (mlError) {
+      console.error('❌ ML service error:', mlError);
+      // Continue without violations
     }
 
     console.log(`📋 ML processing completed: ${violations.length} violations detected - ${violations.join(', ')}`);
 
-    // Update session violation counts
-    violations.forEach(type => incrementViolation(session, type));
+    // Update session violation counts (simple increment)
+    violations.forEach(type => {
+      if (!session.violationCounts) session.violationCounts = {};
+      session.violationCounts[type] = (session.violationCounts[type] || 0) + 1;
+    });
 
     // Annotate and save screenshot if violations detected
     if (violations.length > 0) {
-      const annotatedPath = await annotateScreenshot(imagePath, violations);
-      session.ml_screenshots.push(annotatedPath);
+      try {
+        const annotatedPath = await annotateScreenshot(imagePath, violations);
+        session.ml_screenshots.push(annotatedPath);
+      } catch (annotateError) {
+        console.error('❌ Screenshot annotation error:', annotateError);
+      }
     }
 
   } catch (err) {
@@ -73,10 +51,8 @@ export const processSnapshot = async (imagePath, session, referenceEmbedding) =>
 };
 
 const annotateScreenshot = async (imagePath, violations) => {
-  const tensor = tf.node.decodeImage(fs.readFileSync(imagePath), 3);
-  // Simple annotation: draw text (for demo, just save as is with suffix)
+  // Simple annotation: just save as is with suffix
   const annotatedPath = imagePath.replace('.jpg', '_ml.jpg');
   fs.copyFileSync(imagePath, annotatedPath);
-  // In real impl, use canvas or tf to draw
   return annotatedPath;
 };

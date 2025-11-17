@@ -10,10 +10,8 @@ import path from 'path';
 import auth from '../middleware/auth.js';
 import { processSnapshot } from '../ml/utils/mlProcessor.js';
 import { checkViolations } from '../ml/utils/violationCounter.js';
-import { getFaceEmbedding } from '../ml/utils/faceDetection.js';
-import { estimateGaze } from '../ml/utils/gazeEstimation.js';
-import { compareFaces } from '../ml/utils/faceDetection.js';
-import { detectObjects } from '../ml/utils/objectDetection.js';
+
+import { detectObjects } from '../ml/utils/pythonObjectDetection.js';
 import cloudinary from '../config/cloudinary.js';
 
 const snapshotStorage = multer.diskStorage({
@@ -74,56 +72,81 @@ router.post('/violation', async (req, res) => {
   }
 });
 
-// Upload snapshot
-router.post('/snapshot', uploadSnapshot.single('image'), async (req, res) => {
-  const { sessionId, violations } = req.body;
-  const image_path = req.file.path;
+// Upload snapshot (now accepts JSON with base64 image)
+router.post('/snapshot', async (req, res) => {
+  const { sessionId, image } = req.body; // image is base64 string
   try {
-    // Upload to Cloudinary
-    const cloudinaryResult = await cloudinary.uploader.upload(image_path, {
-      folder: 'exam_snapshots',
-      public_id: `${sessionId}_${Date.now()}`,
-      resource_type: 'image'
-    });
-
-    const snapshot = new Snapshot({
-      session_id: sessionId,
-      image_url: cloudinaryResult.secure_url,
-      violations: violations ? JSON.parse(violations) : []
-    });
-    await snapshot.save();
-
-    // ML Processing
+    // ML Processing first - forward base64 to Python service
     const session = await Session.findById(sessionId);
-    const student = await Student.findById(session.student_id);
-    const referenceEmbedding = student.face_embedding || null; // Assume stored during signup
-    if (referenceEmbedding) {
-      const mlResult = await processSnapshot(image_path, session, referenceEmbedding);
-      await session.save();
-      const check = checkViolations(session);
-      if (check.endExam) {
-        session.status = check.status;
-        await session.save();
-        // Signal frontend to end exam
-      }
+    if (!session) {
+      return res.status(404).json({ ok: false, error: 'Session not found' });
     }
+    const student = await Student.findById(session.student_id);
+    if (!student) {
+      return res.status(404).json({ ok: false, error: 'Student not found' });
+    }
+    const referenceEmbedding = student.face_embedding || null;
+    let check = { endExam: false };
+    let mlViolations = [];
+    let image_url = null;
 
-    // Clean up local file
-    fs.unlinkSync(image_path);
+    if (referenceEmbedding) {
+      // Call Python ML service directly with base64 (strip data URL prefix if present)
+      const axios = (await import('axios')).default;
+      const base64Image = image.replace(/^data:image\/[a-z]+;base64,/, '');
+      const mlResponse = await axios.post('http://localhost:5001/process-ml', {
+        image: base64Image
+      }, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 10000
+      });
+
+      mlViolations = mlResponse.data.violations || [];
+      console.log('ML violations from Python:', mlViolations);
+
+      // Upload to Cloudinary only if violations detected
+      if (mlViolations.length > 0) {
+        try {
+          // Upload base64 directly to Cloudinary
+          const cloudinaryResult = await cloudinary.uploader.upload(image, {
+            folder: 'exam_snapshots',
+            public_id: `${sessionId}_${Date.now()}`,
+            resource_type: 'image'
+          });
+
+          // Only increment violation count if Cloudinary upload succeeds
+          session.ml_violation_count = (session.ml_violation_count || 0) + 1;
+          await session.save();
+          check = checkViolations(session);
+          if (check.endExam) {
+            session.status = check.status;
+            await session.save();
+          }
+
+          const snapshot = new Snapshot({
+            session_id: sessionId,
+            image_url: cloudinaryResult.secure_url,
+            violations: mlViolations
+          });
+          await snapshot.save();
+          image_url = cloudinaryResult.secure_url;
+        } catch (cloudinaryError) {
+          console.error('Cloudinary upload failed:', cloudinaryError);
+          // Do not increment violation count if upload fails
+          check = { endExam: false };
+        }
+      }
 
     res.status(201).json({
       ok: true,
-      image_url: cloudinaryResult.secure_url,
+      image_url: image_url,
       mlViolations: session.ml_violation_count,
-      endExam: check?.endExam || false
+      violations: mlViolations,
+      endExam: check.endExam || false
     });
   } catch (err) {
-    console.error('Snapshot upload error', err);
-    // Clean up local file on error
-    if (fs.existsSync(image_path)) {
-      fs.unlinkSync(image_path);
-    }
-    res.status(500).json({ ok: false, error: 'Upload failed' });
+    console.error('Snapshot processing error', err);
+    res.status(500).json({ ok: false, error: 'Processing failed' });
   }
 });
 
@@ -219,9 +242,22 @@ router.post('/submit', async (req, res) => {
 router.get('/student-results/:studentId', async (req, res) => {
   try {
     const { studentId } = req.params;
+
+    // Find student by ID or roll_no (similar to start endpoint)
+    let student;
+    try {
+      student = await Student.findById(studentId);
+    } catch (err) {
+      // If not a valid ObjectId, try finding by roll_no
+      student = await Student.findOne({ roll_no: studentId });
+    }
+    if (!student) {
+      return res.status(404).json({ msg: "Student not found" });
+    }
+
     // Find all completed sessions for the student
     const sessions = await Session.find({
-      student_id: studentId,
+      student_id: student._id,
       completed_at: { $exists: true }
     })
     .populate('exam_id', 'title subject')
@@ -522,7 +558,10 @@ router.post('/process-ml', async (req, res) => {
     const violations = [];
 
     try {
+      console.log('🔍 Starting ML processing pipeline...');
+
       // 1. Face detection and analysis
+      console.log('👤 Starting face detection...');
       const faceResult = await getFaceEmbedding(imageBuffer);
 
       if (!faceResult) {
@@ -532,14 +571,6 @@ router.post('/process-ml', async (req, res) => {
         if (faceResult.faceCount > 1) {
           violations.push('multiple_faces_detected');
         } else if (faceResult.faceCount === 1) {
-          // Check face match with reference (only once per session)
-          const student = await Student.findById(session.student_id);
-          if (student && student.face_embedding && !compareFaces(faceResult.embedding, student.face_embedding)) {
-            if (!session.faceMismatchDetected) {
-              session.faceMismatchDetected = true;
-              violations.push('face_mismatch');
-            }
-          }
 
           // Check head pose (more conservative thresholds)
           if (faceResult.headPose) {
@@ -552,15 +583,44 @@ router.post('/process-ml', async (req, res) => {
       }
 
       // 2. Gaze estimation
+      console.log('👁️ Starting gaze estimation...');
       const gazeResult = await estimateGaze(imageBuffer);
+      console.log(`👁️ Gaze estimation completed - result: ${gazeResult}`);
       if (gazeResult === 'away') {
         violations.push('gaze_away');
       }
 
-      // 3. Object detection
-      const detectedObjects = await detectObjects(imageBuffer);
-      if (detectedObjects.length > 0) {
-        violations.push(...detectedObjects);
+      // 3. Object detection using Python service
+      console.log('📦 Starting object detection via Python service...');
+      try {
+        const axios = (await import('axios')).default;
+        console.log('📦 Sending image to Flask service, image length:', image.length);
+        const response = await axios.post('http://localhost:5001/process-ml', {
+          image: image
+        }, {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 10000 // 10 second timeout
+        });
+
+        console.log('📦 Flask response status:', response.status);
+        console.log('📦 Flask response data:', JSON.stringify(response.data, null, 2));
+
+        if (response.data.violations && response.data.violations.length > 0) {
+          violations.push(...response.data.violations);
+          console.log(`📦 Python object detection found violations: ${response.data.violations}`);
+        } else {
+          console.log('📦 Python object detection completed - no violations found');
+        }
+      } catch (pythonError) {
+        console.error('❌ Python object detection service error:', pythonError.message);
+        console.error('❌ Python error details:', pythonError.response ? pythonError.response.data : 'No response data');
+        // Fallback to Node.js object detection if Python service fails
+        console.log('🔄 Falling back to Node.js object detection...');
+        const detectedObjects = await detectObjects(imageBuffer);
+        console.log(`📦 Node.js object detection completed - found: ${detectedObjects.length} objects`);
+        if (detectedObjects.length > 0) {
+          violations.push(...detectedObjects);
+        }
       }
 
     } catch (mlError) {
