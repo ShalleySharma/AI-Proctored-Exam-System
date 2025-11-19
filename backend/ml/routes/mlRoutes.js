@@ -19,6 +19,23 @@ router.post('/analyze', async (req, res) => {
   res.json({ violations: result.violations, endExam: check.endExam });
 });
 
+// Get session details with populated data
+router.get('/session/:sessionId', async (req, res) => {
+  try {
+    const session = await Session.findById(req.params.sessionId)
+      .populate('student_id')
+      .populate('exam_id');
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    const snapshots = await Snapshot.find({ session_id: req.params.sessionId });
+    res.json({ session, snapshots });
+  } catch (error) {
+    console.error('Error fetching session:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Generate PDF
 router.get('/report/:sessionId', async (req, res) => {
   const session = await Session.findById(req.params.sessionId).populate('exam_id').populate('student_id');

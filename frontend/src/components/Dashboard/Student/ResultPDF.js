@@ -2,14 +2,24 @@ import React, { useState, useEffect } from 'react';
 
 const ResultPDF = ({ selectedResult, onBack }) => {
   const [fullResult, setFullResult] = useState(null);
+  const [snapshots, setSnapshots] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (selectedResult && selectedResult._id) {
+      console.log('Fetching session data for:', selectedResult._id);
       fetch(`http://localhost:5000/ml/session/${selectedResult._id}`)
-        .then(res => res.json())
+        .then(res => {
+          console.log('Fetch response status:', res.status);
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
         .then(data => {
+          console.log('Fetched data:', data);
           setFullResult(data.session);
+          setSnapshots(data.snapshots || []);
           setLoading(false);
         })
         .catch(err => {
@@ -17,6 +27,7 @@ const ResultPDF = ({ selectedResult, onBack }) => {
           setLoading(false);
         });
     } else {
+      console.log('No selectedResult or _id:', selectedResult);
       setFullResult(selectedResult);
       setLoading(false);
     }
@@ -30,7 +41,7 @@ const ResultPDF = ({ selectedResult, onBack }) => {
     return <div>No result selected</div>;
   }
 
-  const { student, exam, score, total_questions, violation_counts, login_time, logout_time, status, ml_screenshots } = fullResult;
+  const { student_id: student, exam_id: exam, score, total_questions, violation_counts, login_time, logout_time, status, ml_screenshots } = fullResult;
 
   return (
     <div className="container mt-4">
@@ -63,8 +74,13 @@ const ResultPDF = ({ selectedResult, onBack }) => {
                     </div>
                     <div className="card-body">
                       <p><strong>Name:</strong> {student?.name || 'N/A'}</p>
-                      <p><strong>Roll Number:</strong> {student?.rollNumber || 'N/A'}</p>
+                      <p><strong>Roll Number:</strong> {student?.roll_no || 'N/A'}</p>
                       <p><strong>Email:</strong> {student?.email || 'N/A'}</p>
+                      <p><strong>Course:</strong> {student?.course || 'N/A'}</p>
+                      <p><strong>Year:</strong> {student?.year || 'N/A'}</p>
+                      {student?.photo_path && (
+                        <p><strong>Photo:</strong> <img src={student.photo_path} alt="Student Photo" style={{width: '100px', height: '100px', objectFit: 'cover'}} /></p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -78,6 +94,7 @@ const ResultPDF = ({ selectedResult, onBack }) => {
                       <p><strong>Subject:</strong> {exam?.subject || 'N/A'}</p>
                       <p><strong>Date:</strong> {exam?.date ? new Date(exam.date).toLocaleDateString() : 'N/A'}</p>
                       <p><strong>Duration:</strong> {exam?.duration ? `${exam.duration} minutes` : 'N/A'}</p>
+                      <p><strong>Total Marks:</strong> {exam?.totalMarks || 'N/A'}</p>
                     </div>
                   </div>
                 </div>
@@ -109,9 +126,9 @@ const ResultPDF = ({ selectedResult, onBack }) => {
                 </div>
               </div>
 
-              <div className="card">
+              <div className="card mb-3">
                 <div className="card-header bg-danger text-white">
-                  <h6 className="mb-0"><i className="bi bi-exclamation-triangle me-2"></i>Violations</h6>
+                  <h6 className="mb-0"><i className="bi bi-exclamation-triangle me-2"></i>Violations Summary</h6>
                 </div>
                 <div className="card-body">
                   <table className="table table-striped">
@@ -132,6 +149,47 @@ const ResultPDF = ({ selectedResult, onBack }) => {
                   </table>
                 </div>
               </div>
+
+              {snapshots.length > 0 && (
+                <div className="card">
+                  <div className="card-header bg-secondary text-white">
+                    <h6 className="mb-0"><i className="bi bi-camera me-2"></i>Violation Screenshots ({snapshots.length})</h6>
+                  </div>
+                  <div className="card-body">
+                    <div className="row">
+                      {snapshots.map((snap, index) => (
+                        <div key={index} className="col-md-6 mb-3">
+                          <div className="card">
+                            <div className="card-body">
+                              <h6>Screenshot {index + 1}</h6>
+                              <p><strong>Timestamp:</strong> {snap.timestamp ? new Date(snap.timestamp).toLocaleString() : 'N/A'}</p>
+                              <p><strong>Violations:</strong> {snap.violations && snap.violations.length > 0 ? snap.violations.join(', ') : 'None'}</p>
+                              {snap.detections && (
+                                <div>
+                                  <p><strong>Detections:</strong></p>
+                                  <ul>
+                                    <li>Person Count: {snap.detections.person_count || 0}</li>
+                                    <li>Face Count: {snap.detections.face_count || 0}</li>
+                                    <li>Gaze: {snap.detections.gaze || 'N/A'}</li>
+                                    {snap.detections.detected_objects && snap.detections.detected_objects.length > 0 && (
+                                      <li>Objects: {snap.detections.detected_objects.join(', ')}</li>
+                                    )}
+                                  </ul>
+                                </div>
+                              )}
+                              {snap.image_url && (
+                                <div>
+                                  <img src={snap.image_url} alt={`Screenshot ${index + 1}`} style={{width: '100%', maxHeight: '200px', objectFit: 'cover'}} />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

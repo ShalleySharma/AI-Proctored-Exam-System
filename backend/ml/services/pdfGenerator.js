@@ -53,17 +53,13 @@ export const generateResultPDF = (session, snapshots) => {
 
     snapshots.forEach((snap, index) => {
       if (snap.image_url) {
-        try {
-          // For Cloudinary URLs, we can't directly embed them in PDFKit
-          // Instead, we'll add a note about the screenshot
-          doc.text(`Screenshot ${index + 1}: ${snap.image_url}`);
-          doc.moveDown();
-        } catch (error) {
-          console.error('Error adding screenshot to PDF:', error);
-          doc.text(`Screenshot ${index + 1}: Unable to load`);
-        }
+        doc.text(`Screenshot ${index + 1}: ${snap.image_url}`);
+        doc.text(`Violations: ${snap.violations ? snap.violations.join(', ') : 'None'}`);
+        doc.moveDown();
       }
     });
+  } else {
+    doc.text('No violation screenshots available.');
   }
 
   // Footer
