@@ -1,190 +1,87 @@
-// Client-side live monitoring script adapted from Python code
-// This runs in the browser using MediaPipe and TensorFlow.js
+import { io } from 'socket.io-client';
 
-import * as tf from '@tensorflow/tfjs';
-import * as faceLandmarksDetection from '@tensorflow-models/face-landmarks-detection';
-import * as cocoSsd from '@tensorflow-models/coco-ssd';
+const socket = io('http://localhost:3000'); // Connect to the backend server
 
-let faceModel = null;
-let objectModel = null;
-let referenceEmbedding = null;
-let isMonitoring = false;
+export const startLiveMonitoring = (sessionId, examId, studentId, onViolationDetected) => {
+  // Request access to the user's camera and microphone
+  navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then((stream) => {
+    const videoElement = document.createElement('video');
+    videoElement.srcObject = stream;
+    videoElement.play();
 
-export const loadModels = async () => {
-  if (!faceModel) {
-    faceModel = await faceLandmarksDetection.createDetector(
-      faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
-      { runtime: 'tfjs', refineLandmarks: true }
-    );
-  }
-  if (!objectModel) {
-    objectModel = await cocoSsd.load();
-  }
-  console.log('Models loaded for live monitoring');
-};
-
-export const takePhoto = () => {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement('video');
+    // Set up canvas for capturing frames
     const canvas = document.createElement('canvas');
-    const streamPromise = navigator.mediaDevices.getUserMedia({ video: true });
+    const context = canvas.getContext('2d');
+    canvas.width = 640; // Set canvas width
+    canvas.height = 480; // Set canvas height
 
-    streamPromise.then(stream => {
-      video.srcObject = stream;
-      video.play().then(() => {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-        stream.getTracks().forEach(track => track.stop());
-        resolve(canvas.toDataURL('image/jpeg', 0.8));
-      });
-    }).catch(reject);
-  });
-};
+    // Function to capture and send frames to the backend for ML processing
+    const captureAndSendFrame = async () => {
+      if (videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
+        // Draw the current video frame onto the canvas
+        context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
 
-export const getFaceEmbedding = async (imageData) => {
-  const img = new Image();
-  img.src = imageData;
-  await new Promise(resolve => img.onload = resolve);
+        // Convert canvas to base64 image data
+        const imageData = canvas.toDataURL('image/jpeg', 0.8); // Compress to 80% quality for efficiency
 
-  const tensor = tf.browser.fromPixels(img);
-  const predictions = await faceModel.estimateFaces(tensor);
+        try {
+          // Send the image data to the backend for processing
+          const response = await fetch('http://localhost:5001/process-ml', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ image: imageData, sessionId }),
+          });
 
-  if (!predictions || predictions.length === 0) return null;
+          if (response.ok) {
+            const result = await response.json();
+            console.log('ML Processing Result:', result); // Log the result for debugging
 
-  const landmarks = predictions[0].keypoints;
-  const embedding = [];
-  landmarks.forEach(lm => {
-    embedding.push(lm.x, lm.y, lm.z || 0);
-  });
+            // Check for violations and call the callback if any are detected
+            if (result.violations && result.violations.length > 0) {
+              console.log('Violations detected:', result.violations); // Log violations for debugging
 
-  tensor.dispose();
-  return embedding;
-};
+              // Log specific cheat detections
+              if (result.violations.includes('ml_no_face_detected')) {
+                console.log('Cheat detection: No face detected');
+              }
+              if (result.violations.includes('ml_cell phone')) {
+                console.log('Cheat detection: Cell phone detected');
+              }
+              if (result.violations.includes('ml_multiple_faces_detected')) {
+                console.log('Cheat detection: Multiple faces detected');
+              }
+              if (result.violations.includes('ml_gaze_away') || result.violations.includes('gaze_away')) {
+                console.log('Cheat detection: Looking away detected');
+              }
 
-export const estimateGaze = async (imageData) => {
-  const img = new Image();
-  img.src = imageData;
-  await new Promise(resolve => img.onload = resolve);
-
-  const tensor = tf.browser.fromPixels(img);
-  const predictions = await faceModel.estimateFaces(tensor);
-
-  if (!predictions || predictions.length === 0) return 'center';
-
-  const landmarks = predictions[0].keypoints;
-
-  // Simplified gaze estimation (similar to Python)
-  const nose = landmarks[1];
-  const leftEye = landmarks[33];
-  const rightEye = landmarks[263];
-
-  const eyeCenterX = (leftEye.x + rightEye.x) / 2;
-  const eyeCenterY = (leftEye.y + rightEye.y) / 2;
-
-  const yaw = (nose.x - eyeCenterX) * 180 / Math.PI;
-  const pitch = (nose.y - eyeCenterY) * 180 / Math.PI;
-
-  let v_text = "Center";
-  let h_text = "Center";
-
-  if (pitch > 10) v_text = "Down";
-  else if (pitch < -10) v_text = "Up";
-
-  if (yaw > 10) h_text = "Right";
-  else if (yaw < -10) h_text = "Left";
-
-  const gaze_text = (v_text !== "Center" || h_text !== "Center") ? `${v_text}-${h_text}` : "Forward";
-
-  tensor.dispose();
-  return gaze_text === "Forward" ? "center" : "away";
-};
-
-export const detectObjects = async (imageData) => {
-  const img = new Image();
-  img.src = imageData;
-  await new Promise(resolve => img.onload = resolve);
-
-  const predictions = await objectModel.detect(img);
-  const detected = [];
-
-  predictions.forEach(pred => {
-    if (pred.score > 0.5) {
-      const label = pred.class.toLowerCase();
-      if (label === 'cell phone' || label === 'book' || label === 'laptop') {
-        detected.push(label);
+              onViolationDetected(result.violations); // Call the callback with violations
+            } else {
+              console.log('No violations detected.'); // Log if no violations
+            }
+          } else {
+            console.error('Failed to process ML:', response.statusText); // Log error if request fails
+          }
+        } catch (error) {
+          console.error('Error sending frame for ML processing:', error); // Log any errors during fetch
+        }
+      } else {
+        console.warn('Video not ready yet, skipping frame capture.'); // Warn if video is not ready
       }
-    }
+    };
+
+    // Capture and send frames every 2 seconds (adjust as needed for performance vs. accuracy trade-off)
+    const intervalId = setInterval(captureAndSendFrame, 2000); // 2-second interval for frame capture
+
+    // Return a function to stop monitoring and clean up resources
+    return () => {
+      clearInterval(intervalId); // Stop the interval for capturing frames
+      stream.getTracks().forEach(track => track.stop()); // Stop all media tracks (camera, etc.)
+      socket.disconnect(); // Disconnect the socket if needed (though not used in this function currently)
+    };
+  }).catch((error) => {
+    console.error('Error accessing camera:', error); // Log error if camera access fails
+    throw error; // Re-throw the error for handling by the caller
   });
-
-  return detected;
-};
-
-export const processFrame = async (frameData) => {
-  const emb = await getFaceEmbedding(frameData);
-  if (!emb) return { text: "No face detected", color: "red" };
-
-  const cos_sim = tf.losses.cosineDistance(referenceEmbedding, emb, 0).dataSync()[0];
-  const similarity = 1 - cos_sim; // Cosine similarity
-
-  let text, color;
-  if (similarity > 0.6) {
-    text = `Verified (${similarity.toFixed(2)})`;
-    color = "green";
-  } else {
-    text = `Unverified (${similarity.toFixed(2)})`;
-    color = "red";
-  }
-
-  return { text, color, similarity };
-};
-
-export const startLiveMonitoring = async (onFrameProcessed) => {
-  if (isMonitoring) return;
-  isMonitoring = true;
-
-  // Register face
-  console.log("Capturing reference face...");
-  const refData = await takePhoto();
-  referenceEmbedding = await getFaceEmbedding(refData);
-  if (!referenceEmbedding) {
-    alert("No face detected in reference image.");
-    return;
-  }
-  console.log("Face registered!");
-
-  // Start monitoring loop
-  const monitor = async () => {
-    if (!isMonitoring) return;
-
-    try {
-      const frameData = await takePhoto();
-      const [frameResult, gaze, objects] = await Promise.all([
-        processFrame(frameData),
-        estimateGaze(frameData),
-        detectObjects(frameData)
-      ]);
-
-      const result = {
-        verification: frameResult,
-        gaze,
-        objects,
-        timestamp: Date.now()
-      };
-
-      onFrameProcessed(result);
-
-      setTimeout(monitor, 1000); // Process every second
-    } catch (err) {
-      console.error("Monitoring error:", err);
-      setTimeout(monitor, 1000);
-    }
-  };
-
-  monitor();
-};
-
-export const stopLiveMonitoring = () => {
-  isMonitoring = false;
-  console.log("Monitoring stopped.");
 };

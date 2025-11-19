@@ -11,9 +11,11 @@ config();
 const app = express();
 connectDB();
 
-// configure upload folder
+// configure upload folders
 const UPLOAD_DIR = 'uploads/snapshots';
+const ENTER_PHOTOS_DIR = 'uploads/enter_photos';
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+if (!fs.existsSync(ENTER_PHOTOS_DIR)) fs.mkdirSync(ENTER_PHOTOS_DIR, { recursive: true });
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));

@@ -10,7 +10,7 @@ const detectObjects = async (imageBuffer) => {
       image: base64Image
     }, {
       headers: { 'Content-Type': 'application/json' },
-      timeout: 10000 // 10 second timeout
+      timeout: 20000 // 20 second timeout
     });
 
     const data = response.data;

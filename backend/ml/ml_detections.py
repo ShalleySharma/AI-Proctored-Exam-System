@@ -9,10 +9,10 @@ from collections import deque
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # Initialize the YOLO model
-model = YOLO("yolov8l.pt")  # Replace with your YOLO model file
+model = YOLO("yolov8n.pt")  # Replace with your YOLO model file
 
 # Confidence threshold
-CONFIDENCE_THRESHOLD = 0.3  # Lowered from 0.5 for better detection
+CONFIDENCE_THRESHOLD = 0.5  # Increased from 0.3 to reduce false positives
 
 # Initialize MediaPipe Face Detection and Face Mesh
 mp_face_detection = mp.solutions.face_detection
@@ -60,35 +60,70 @@ def detectObject(frame, confidence_threshold=CONFIDENCE_THRESHOLD, resize_width=
         results = model(frame)
 
         for result in results:
-            for box in result.boxes.data.cpu().numpy():
-                x1, y1, x2, y2, score, class_id = box
+            # SAFE box processing - check for None/empty boxes
+            if result.boxes is None or result.boxes.data is None:
+                continue
 
-                if score > confidence_threshold:  # Apply confidence threshold
-                    label = model.names[int(class_id)]
-                    labels_this_frame.append((label, float(score)))
+            boxes_data = result.boxes.data.cpu().numpy()
+            if boxes_data is None or len(boxes_data) == 0:
+                continue
 
-                    # Check for specific objects (cell phone, book, person, laptop, remote, keyboard, mouse)
-                    if label.lower() == "person":
-                        person_count += 1
-                        detected_objects.append("person")
-                    elif label.lower() in ["cell phone", "cellphone", "mobile phone", "smartphone"]:
-                        detected_objects.append("cell phone")
-                    elif label.lower() == "book":
-                        detected_objects.append("book")
-                    elif label.lower() == "laptop":
-                        detected_objects.append("laptop")
-                    elif label.lower() == "remote":
-                        detected_objects.append("remote")
-                    elif label.lower() == "keyboard":
-                        detected_objects.append("keyboard")
-                    elif label.lower() == "mouse":
-                        detected_objects.append("mouse")
+            for box in boxes_data:
+                try:
+                    # SAFE unpacking - handle different box formats
+                    if len(box) < 6:
+                        continue  # Skip malformed boxes
 
-                    # Draw bounding box in blue
-                    cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
-                    # Draw label and confidence value in red
-                    cv2.putText(frame, f"{label} {score:.2f}", (int(x1), int(y1) - 10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                    x1, y1, x2, y2, score, class_id = box[:6]
+
+                    # Calculate bounding box area to filter small objects
+                    box_area = (x2 - x1) * (y2 - y1)
+                    min_area_threshold = 0.01 * frame.shape[0] * frame.shape[1]  # 1% of frame area
+
+                    if score > confidence_threshold and box_area > min_area_threshold:  # Apply confidence and size thresholds
+                        # SAFE class ID handling - prevent IndexError
+                        try:
+                            class_id_int = int(class_id)
+                            if class_id_int not in model.names:
+                                label = "unknown"
+                            else:
+                                label = model.names[class_id_int]
+                        except (ValueError, KeyError, IndexError):
+                            label = "unknown"
+
+                        labels_this_frame.append((label, float(score)))
+
+                        # Check for specific objects (cell phone, book, person, laptop, remote, keyboard, mouse)
+                        if label.lower() == "person":
+                            person_count += 1
+                            detected_objects.append("person")
+                        elif label.lower() in ["cell phone", "cellphone", "mobile phone", "smartphone"]:
+                            detected_objects.append("cell phone")
+                        elif label.lower() == "book":
+                            detected_objects.append("book")
+                        elif label.lower() == "laptop":
+                            detected_objects.append("laptop")
+                        elif label.lower() == "remote":
+                            detected_objects.append("remote")
+                        elif label.lower() == "keyboard":
+                            detected_objects.append("keyboard")
+                        elif label.lower() == "mouse":
+                            detected_objects.append("mouse")
+
+                        # Draw bounding box in blue - SAFE coordinates
+                        try:
+                            cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
+                            # Draw label and confidence value in red
+                            cv2.putText(frame, f"{label} {score:.2f}", (int(x1), int(y1) - 10),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                        except (ValueError, OverflowError):
+                            # Skip drawing if coordinates are invalid
+                            pass
+
+                except (ValueError, IndexError, TypeError) as e:
+                    # Skip malformed boxes
+                    logging.warning(f"Skipping malformed box: {e}")
+                    continue
 
         logging.info(f"Detected objects: {labels_this_frame}")
         logging.info(f"Detected objects list: {detected_objects}")

@@ -36,7 +36,25 @@ const EnterExam = () => {
         videoRef.current.srcObject = mediaStream;
       }
     } catch (err) {
-      alert('Camera access denied');
+      console.error('Camera access error:', err);
+      let errorMessage = 'Camera access denied. ';
+
+      if (err.name === 'NotAllowedError') {
+        errorMessage += 'Please allow camera access in your browser settings and refresh the page.';
+      } else if (err.name === 'NotFoundError') {
+        errorMessage += 'No camera device found. Please connect a camera and try again.';
+      } else if (err.name === 'NotReadableError') {
+        errorMessage += 'Camera is already in use by another application. Please close other apps using the camera.';
+      } else if (err.name === 'OverconstrainedError') {
+        errorMessage += 'Camera does not meet the required constraints.';
+      } else if (err.name === 'SecurityError') {
+        errorMessage += 'Camera access blocked due to security restrictions. Ensure you are using HTTPS or localhost.';
+      } else {
+        errorMessage += 'An unknown error occurred. Please check your camera settings.';
+      }
+
+      alert(errorMessage);
+      toastAdd(errorMessage, 'error');
     }
   };
 
@@ -122,10 +140,25 @@ const EnterExam = () => {
         localStorage.setItem('studentId', rollNo.trim());
         localStorage.setItem('examId', examId.trim());
 
-        // Optionally send photo to backend for verification
-        if (photoData) {
-          // You can implement photo upload here if needed
-          console.log('Photo captured for student:', rollNo);
+        // Upload photo to backend for verification
+        if (photo) {
+          try {
+            const formData = new FormData();
+            formData.append('photo', photo, 'enter-exam-photo.jpg');
+            formData.append('studentId', rollNo.trim());
+            formData.append('examId', examId.trim());
+
+            await axios.post(`${API_BASE}/api/exam/save-photo`, formData, {
+              headers: {
+                'Content-Type': 'multipart/form-data'
+              }
+            });
+            console.log('Photo uploaded successfully for student:', rollNo);
+          } catch (photoError) {
+            console.error('Photo upload failed:', photoError);
+            // Don't block exam entry if photo upload fails
+            toastAdd('Exam entry successful, but photo upload failed. Continuing...', 'warning');
+          }
         }
 
         toastAdd('Exam entry successful! Starting exam...');
