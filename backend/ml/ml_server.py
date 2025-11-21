@@ -16,9 +16,9 @@ def process_ml():
     try:
         print("Received ML processing request")
         data = request.get_json()
-        if not data or 'image' not in data or 'sessionId' not in data:
-            print("Missing image or sessionId")
-            return jsonify({"error": "Missing image or sessionId"}), 400
+        if not data or 'image' not in data:
+            print("Missing image")
+            return jsonify({"error": "Missing image"}), 400
 
         base64_image = data['image']
         session_id = data['sessionId']
@@ -51,10 +51,11 @@ def process_ml():
                 "gaze": "center"
             })
 
-        # Run YOLO detection
+        # Run YOLO detection with optimized settings
         print("Running YOLO detection")
         try:
-            results = model(img_array)
+            # Use smaller image size and optimized settings for faster processing
+            results = model(img_array, imgsz=320, conf=0.25, iou=0.45)  # Even smaller image, lower conf, higher iou
             print("YOLO detection completed")
         except Exception as e:
             print(f"YOLO detection failed: {e}")

@@ -274,10 +274,10 @@ router.get('/teacher-sessions', auth, async (req, res) => {
     const exams = await Exam.find({ createdBy: teacherId }).select('_id');
     const examIds = exams.map(exam => exam._id);
 
-    // Find sessions for those exams
+    // Find sessions for those exams with full details
     const sessions = await Session.find({ exam_id: { $in: examIds } })
-      .populate('student_id', 'name roll_no')
-      .populate('exam_id', 'title subject')
+      .populate('student_id', 'name roll_no email course year photo_path')
+      .populate('exam_id', 'title subject date duration totalMarks')
       .sort({ completed_at: -1 });
 
     res.json(sessions);
@@ -311,6 +311,7 @@ router.post('/submit', async (req, res) => {
     session.total_questions = totalQuestions;
     session.time_expired = timeExpired;
     session.completed_at = completedAt;
+    session.logout_time = new Date(completedAt); // Use the same time as completed_at for consistency
     session.violations = violations || [];
     session.violation_counts = {
       tab_switches: violationCounts?.tab_switches || 0,
@@ -409,7 +410,17 @@ router.get('/student-results/:studentId', async (req, res) => {
         screenshots,
         examTitle: session.exam_id?.title || 'Unknown Exam',
         examSubject: session.exam_id?.subject || 'Unknown Subject',
-        pdfPath: session.pdf_path // Add PDF path for download
+        pdfPath: session.pdf_path, // Add PDF path for download
+        // Add student details
+        studentName: student.name,
+        studentRollNo: student.roll_no,
+        studentEmail: student.email,
+        studentCourse: student.course,
+        studentYear: student.year,
+        studentPhoto: student.photo_path,
+        // Add session times
+        loginTime: session.login_time,
+        logoutTime: session.logout_time || session.completed_at
       };
     }));
 

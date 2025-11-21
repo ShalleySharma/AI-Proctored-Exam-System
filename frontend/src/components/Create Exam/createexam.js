@@ -87,6 +87,8 @@ const CreateExam = () => {
       const response = await axios.post('/api/exam/create', examData);
       setMessage('Exam created successfully!');
       setExamCode(response.data.examCode);
+
+      // Clear the form for creating another exam
       setExamData({
         title: '',
         subject: '',
@@ -96,6 +98,12 @@ const CreateExam = () => {
         totalMarks: '',
         questions: []
       });
+
+      // Auto-hide the exam code after 1 minute to allow creating another exam
+      setTimeout(() => {
+        setExamCode('');
+        setMessage('');
+      }, 60000);
     } catch (error) {
       if (error.response?.status === 401) {
         setMessage('Session expired. Please login again.');
@@ -160,66 +168,61 @@ const CreateExam = () => {
             <h4 className="section-title">Exam Details</h4>
             <div className="form-grid">
               <div className="form-group">
-                <label htmlFor="title">Exam Title *</label>
+                <label htmlFor="title">Exam Title</label>
                 <input
                   type="text"
                   id="title"
                   name="title"
                   value={examData.title}
                   onChange={handleExamChange}
-                  required
                   placeholder="Enter exam title"
                 />
               </div>
 
               <div className="form-group">
-                <label htmlFor="subject">Subject *</label>
+                <label htmlFor="subject">Subject</label>
                 <input
                   type="text"
                   id="subject"
                   name="subject"
                   value={examData.subject}
                   onChange={handleExamChange}
-                  required
                   placeholder="Enter subject"
                 />
               </div>
 
               <div className="form-group">
-                <label htmlFor="date">Exam Date *</label>
+                <label htmlFor="date">Exam Date</label>
                 <input
                   type="datetime-local"
                   id="date"
                   name="date"
                   value={examData.date}
                   onChange={handleExamChange}
-                  required
                 />
               </div>
 
               <div className="form-group">
-                <label htmlFor="duration">Duration (minutes) *</label>
+                <label htmlFor="duration">Duration (minutes)</label>
                 <input
                   type="number"
                   id="duration"
                   name="duration"
                   value={examData.duration}
                   onChange={handleExamChange}
-                  required
                   min="1"
                   placeholder="60"
                 />
               </div>
 
               <div className="form-group">
-                <label htmlFor="totalMarks">Total Marks *</label>
+                <label htmlFor="totalMarks">Total Marks</label>
                 <input
                   type="number"
                   id="totalMarks"
                   name="totalMarks"
                   value={examData.totalMarks}
                   onChange={handleExamChange}
-                  required
                   min="1"
                   placeholder="100"
                 />

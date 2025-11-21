@@ -1,6 +1,7 @@
 import express from 'express';
 const router = express.Router();
 import Session from '../../models/Session.js';
+import Snapshot from '../../models/Snapshot.js';
 import { processSnapshot } from '../utils/mlProcessor.js';
 import { checkViolations } from '../utils/violationCounter.js';
 import { generateResultPDF } from '../services/pdfGenerator.js';
