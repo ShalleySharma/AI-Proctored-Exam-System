@@ -1022,25 +1022,7 @@ function ExamPage() {
                 }}
               />
             </div>
-            <div style={{ marginTop: '20px' }}>
-              <h5 style={{ color: '#333', marginBottom: '15px' }}>ML Cheat Detection</h5>
-              <div style={{ fontSize: '1rem', lineHeight: '1.6', color: '#555' }}>
-                <p><strong>Total ML Violations:</strong> {mlViolationCount} violations</p>
-                <p><strong>Face Identity:</strong> {violationCounts.ml_face_mismatch} violations</p>
-                <p><strong>No Face Detected:</strong> {violationCounts.ml_no_face_detected} violations</p>
-                <p><strong>Multiple Persons:</strong> {violationCounts.ml_multiple_faces_detected} violations</p>
-                <p><strong>Head Direction:</strong> {violationCounts.ml_gaze_away} violations</p>
-                <p><strong>Eye Gaze and Blinks:</strong> {violationCounts.ml_gaze_away} violations</p>
-                <p><strong>Suspicious Objects:</strong> {violationCounts.ml_object_detected} violations</p>
-              </div>
-              {mlViolations.length > 0 && (
-                <div style={{ marginTop: '10px', color: 'red', fontWeight: 'bold' }}>
-                  {mlViolations.slice(-3).map((violation, idx) => (
-                    <p key={idx} style={{ margin: '5px 0' }}>⚠️ {violation.message}</p>
-                  ))}
-                </div>
-              )}
-            </div>
+
             <div style={{ marginTop: '20px' }}>
               <h5 style={{ color: '#333', marginBottom: '15px' }}>Recent Violations</h5>
               {violations.length > 0 ? (

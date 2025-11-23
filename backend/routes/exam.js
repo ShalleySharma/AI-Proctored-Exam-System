@@ -367,7 +367,7 @@ router.get('/student-results/:studentId', async (req, res) => {
       student_id: student._id,
       completed_at: { $exists: true }
     })
-    .populate('exam_id', 'title subject')
+    .populate('exam_id', 'title subject date duration totalMarks questions')
     .sort({ completed_at: -1 });
 
     if (!sessions || sessions.length === 0) {
@@ -538,10 +538,17 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
-// Join exam by code (for students)
+// Join exam by code or ID (for students)
 router.get('/join/:code', auth, async (req, res) => {
   try {
-    const exam = await Exam.findOne({ examCode: req.params.code }).populate('createdBy', 'name');
+    // First try to find by examCode
+    let exam = await Exam.findOne({ examCode: req.params.code }).populate('createdBy', 'name');
+
+    // If not found by examCode, try to find by _id
+    if (!exam) {
+      exam = await Exam.findById(req.params.code).populate('createdBy', 'name');
+    }
+
     if (!exam) {
       return res.status(404).json({ success: false, message: 'Exam not found' });
     }

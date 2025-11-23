@@ -21,7 +21,7 @@ const ResultPDF = ({ selectedResult, onBack }) => {
           title: selectedResult.examTitle || 'Mock Exam',
           subject: selectedResult.examSubject || 'Mock Subject',
           date: new Date().toISOString(),
-          duration: 60,
+          duration: selectedResult.examDuration || 60,
           totalMarks: selectedResult.totalQuestions || 10
         },
         score: selectedResult.score || 0,

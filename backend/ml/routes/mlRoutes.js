@@ -29,6 +29,7 @@ router.get('/session/:sessionId', async (req, res) => {
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
     }
+    console.log('Session exam duration:', session.exam_id?.duration);
     const snapshots = await Snapshot.find({ session_id: req.params.sessionId });
     res.json({ session, snapshots });
   } catch (error) {

@@ -95,7 +95,10 @@ function InstructorDashboard() {
   return (
     <div className="container py-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="fw-bold text-primary">📘 Instructor Dashboard</h2>
+        <div>
+          <h1 className="display-4 fw-bold mb-4" style={{ color: 'var(--text-dark)' }}>Instructor Dashboard</h1>
+          <p className="text-white-50 mb-0" style={{ fontSize: '1.1rem' }}>Monitor student exam sessions and results</p>
+        </div>
       </div>
 
       {sessions.length === 0 ? (
@@ -129,13 +132,7 @@ function InstructorDashboard() {
                       className="btn btn-outline-info btn-sm px-3"
                       onClick={() => handleViewDetails(session)}
                     >
-                      View Details
-                    </button>
-                    <button
-                      className="btn btn-outline-primary btn-sm px-3"
-                      onClick={() => handleViewPDF(session._id)}
-                    >
-                      View PDF
+                      View
                     </button>
                     <button
                       className="btn btn-outline-success btn-sm px-3"
