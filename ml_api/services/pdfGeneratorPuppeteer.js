@@ -6,7 +6,10 @@ import path from 'path';
 import fs from 'fs';
 
 export const generateResultPDFWithUI = async (sessionId) => {
-  const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+  if (!process.env.FRONTEND_URL) {
+    throw new Error('Environment variable FRONTEND_URL is not set.');
+  }
+  const FRONTEND_URL = process.env.FRONTEND_URL;
   const url = `${FRONTEND_URL}/result/${sessionId}`; // Assuming React app serves ResultPDF page at /result/:sessionId
   const pdfDir = path.resolve('uploads');
   if (!fs.existsSync(pdfDir)) {
