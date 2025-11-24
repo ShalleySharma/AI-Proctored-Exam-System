@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import authService from '../utils/auth';
 
 export default function Navbar() {
   const navigate = useNavigate();
+  const location = useLocation();
+
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     return saved ? JSON.parse(saved) : false;
@@ -71,6 +73,15 @@ export default function Navbar() {
     localStorage.setItem('darkMode', JSON.stringify(darkMode));
   }, [darkMode]);
 
+  useEffect(() => {
+    if (location.hash === '#about') {
+      const aboutSection = document.getElementById('about');
+      if (aboutSection) {
+        aboutSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  }, [location]);
+
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
   };
@@ -81,6 +92,17 @@ export default function Navbar() {
     localStorage.removeItem('studentId');
     window.dispatchEvent(new Event('authChange'));
     navigate('/');
+  };
+
+  const handleAboutClick = (e) => {
+    if (location.pathname === '/') {
+      e.preventDefault();
+      const aboutSection = document.getElementById('about');
+      if (aboutSection) {
+        aboutSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+    // If not on home page, just let the Link navigate to /#about and the useEffect will scroll
   };
 
   return (
@@ -129,7 +151,7 @@ export default function Navbar() {
               </li>
             )}
             <li className="nav-item me-4">
-              <Link className="nav-link fw-semibold" to="/#about" style={{
+              <Link className="nav-link fw-semibold" to="/#about" onClick={handleAboutClick} style={{
                 color: darkMode ? '#000' : '#333333',
                 fontSize: '0.95rem',
                 transition: 'color 0.3s ease'

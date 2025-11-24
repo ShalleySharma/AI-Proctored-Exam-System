@@ -11,10 +11,11 @@ import ExamPage from "./components/ExamPage";
 import InstructorDashboard from "./components/Dashboard/Teacher/InstructorDashboard";
 import StudentDashboard from "./components/Dashboard/Student/StudentDashboard";
 import TeacherSignin from "./components/Signin/Teacher/TeacherSignup.js";
+import TeacherSignup from "./components/Signin/Teacher/TeacherSignup.js";
 import TeacherProfile from "./components/Profile/Teacher/teacherprofile.js";
 import StudentProfile from "./components/Profile/Student/studentprofile.js";
 import CreateExam from "./components/Create Exam/createexam.js";
-import JoinExam from "./components/JoinExam.js";
+import JoinExam from "./components/JoinExam/joinexam.js";
 import EnterExam from "./components/Enter Exam/enterexam.js";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -32,6 +33,7 @@ function AppContent() {
         <Route path="/student-signup" element={<StudentSignup />} />
         <Route path="/teacher-login" element={<TeacherLogin />} />
         <Route path="/teacher-signin" element={<TeacherSignin />} />
+        <Route path="/teacher-signup" element={<TeacherSignup />} />
         <Route path="/instructions" element={<Instructions />} />
         <Route path="/exam" element={<ExamPage />} />
         <Route path="/exam/:examId" element={<ExamPage />} />

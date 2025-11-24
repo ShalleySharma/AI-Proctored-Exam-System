@@ -50,11 +50,7 @@ const CreateExam = () => {
   };
 
   const addQuestion = () => {
-    if (!currentQuestion.questionText || !currentQuestion.correctAnswer || !currentQuestion.marks) {
-      setMessage('Please fill all question fields');
-      return;
-    }
-
+    // Removed validation constraints to allow adding questions with empty fields
     setExamData(prev => ({
       ...prev,
       questions: [...prev.questions, currentQuestion]
@@ -107,12 +103,10 @@ const CreateExam = () => {
     } catch (error) {
       if (error.response?.status === 401) {
         setMessage('Session expired. Please login again.');
-        // Clear auth state
         localStorage.removeItem('token');
         localStorage.removeItem('teacherId');
         localStorage.removeItem('studentId');
         window.dispatchEvent(new Event('authChange'));
-        // Don't redirect immediately, let user see the message
       } else {
         setMessage(error.response?.data?.message || 'Error creating exam');
       }
@@ -178,7 +172,6 @@ const CreateExam = () => {
                   placeholder="Enter exam title"
                 />
               </div>
-
               <div className="form-group">
                 <label htmlFor="subject">Subject</label>
                 <input
@@ -190,7 +183,6 @@ const CreateExam = () => {
                   placeholder="Enter subject"
                 />
               </div>
-
               <div className="form-group">
                 <label htmlFor="date">Exam Date</label>
                 <input
@@ -201,7 +193,6 @@ const CreateExam = () => {
                   onChange={handleExamChange}
                 />
               </div>
-
               <div className="form-group">
                 <label htmlFor="duration">Duration (minutes)</label>
                 <input
@@ -214,7 +205,6 @@ const CreateExam = () => {
                   placeholder="60"
                 />
               </div>
-
               <div className="form-group">
                 <label htmlFor="totalMarks">Total Marks</label>
                 <input
@@ -228,7 +218,6 @@ const CreateExam = () => {
                 />
               </div>
             </div>
-
             <div className="form-group">
               <label htmlFor="description">Description</label>
               <textarea
@@ -249,14 +238,13 @@ const CreateExam = () => {
               <h5>Add New Question</h5>
 
               <div className="form-group">
-                <label>Question Text *</label>
+                <label>Question Text</label>
                 <textarea
                   name="questionText"
                   value={currentQuestion.questionText}
                   onChange={handleQuestionChange}
                   placeholder="Enter your question"
                   rows="2"
-                  required
                 />
               </div>
 
@@ -276,12 +264,11 @@ const CreateExam = () => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Correct Answer *</label>
+                  <label>Correct Answer</label>
                   <select
                     name="correctAnswer"
                     value={currentQuestion.correctAnswer}
                     onChange={handleQuestionChange}
-                    required
                   >
                     <option value="">Select correct answer</option>
                     {currentQuestion.options.map((option, index) => (
@@ -291,7 +278,7 @@ const CreateExam = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Marks *</label>
+                  <label>Marks</label>
                   <input
                     type="number"
                     name="marks"
@@ -299,7 +286,6 @@ const CreateExam = () => {
                     onChange={handleQuestionChange}
                     min="1"
                     placeholder="5"
-                    required
                   />
                 </div>
               </div>

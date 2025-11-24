@@ -8,7 +8,10 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import auth from '../middleware/auth.js';
+/*
 import { checkViolations } from '../ml/utils/violationCounter.js';
+*/
+
 const snapshotStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/snapshots/'),
   filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
@@ -313,7 +316,12 @@ router.post('/submit', async (req, res) => {
     session.completed_at = completedAt;
     session.logout_time = new Date(completedAt); // Use the same time as completed_at for consistency
     session.violations = violations || [];
-    session.violation_counts = {
+
+    // Aggregate ML violation counts from snapshots
+    const snapshots = await Snapshot.find({ session_id: sessionId });
+
+    // Initialize aggregated counts with passed violationCounts or zero
+    const aggregatedCounts = {
       tab_switches: violationCounts?.tab_switches || 0,
       window_focus_loss: violationCounts?.window_focus_loss || 0,
       camera_issues: violationCounts?.camera_issues || 0,
@@ -329,9 +337,28 @@ router.post('/submit', async (req, res) => {
       ml_object_detected: violationCounts?.ml_object_detected || 0
     };
 
+    for (const snap of snapshots) {
+      if (snap.violations && snap.violations.length > 0) {
+        // Count occurrences of each violation type in this snapshot
+        const snapCounts = snap.violations.reduce((acc, v) => {
+          acc[v] = (acc[v] || 0) + 1;
+          return acc;
+        }, {});
+        // Accumulate counts for ML violations of interest
+        aggregatedCounts.ml_multiple_faces_detected += snapCounts['ml_multiple_faces_detected'] || 0;
+        aggregatedCounts.ml_no_face_detected += snapCounts['ml_no_face_detected'] || 0;
+        aggregatedCounts.ml_head_pose_away += snapCounts['ml_head_pose_away'] || 0;
+        aggregatedCounts.ml_gaze_away += snapCounts['ml_gaze_away'] || 0;
+        aggregatedCounts.ml_object_detected += snapCounts['ml_object_detected'] || 0;
+        aggregatedCounts.ml_face_mismatch += snapCounts['ml_face_mismatch'] || 0;
+      }
+    }
+
+    // Update session violation counts with aggregated totals
+    session.violation_counts = aggregatedCounts;
+
     // Generate PDF
-    const snapshots = await Snapshot.find({ session_id: sessionId });
-    const { generateResultPDF } = await import('../ml/services/pdfGenerator.js');
+    const { generateResultPDF } = await import('../services/pdfGenerator.js');
     const pdfPath = generateResultPDF(session, snapshots);
 
     // Update session with PDF path
@@ -349,16 +376,34 @@ router.post('/submit', async (req, res) => {
 router.get('/student-results/:studentId', async (req, res) => {
   try {
     const { studentId } = req.params;
+    console.log(`Fetching exam results for studentId: ${studentId}`);
 
-    // Find student by ID or roll_no (similar to start endpoint)
-    let student;
-    try {
-      student = await Student.findById(studentId);
-    } catch (err) {
-      // If not a valid ObjectId, try finding by roll_no
-      student = await Student.findOne({ roll_no: studentId });
+    // Validate studentId format before querying
+    const isValidObjectId = studentId && studentId.match(/^[0-9a-fA-F]{24}$/);
+    let student = null;
+
+    if (isValidObjectId) {
+      try {
+        student = await Student.findById(studentId);
+        console.log(`Student found by _id: ${student ? 'Yes' : 'No'}`);
+      } catch (err) {
+        console.error('Error finding student by _id:', err);
+        return res.status(500).json({ msg: "Server error finding student by _id" });
+      }
     }
+
     if (!student) {
+      try {
+        student = await Student.findOne({ roll_no: studentId });
+        console.log(`Student found by roll_no: ${student ? 'Yes' : 'No'}`);
+      } catch (err) {
+        console.error('Error finding student by roll_no:', err);
+        return res.status(500).json({ msg: "Server error finding student by roll_no" });
+      }
+    }
+
+    if (!student) {
+      console.log(`Student not found (by _id or roll_no): ${studentId}`);
       return res.status(404).json({ msg: "Student not found" });
     }
 
@@ -371,6 +416,7 @@ router.get('/student-results/:studentId', async (req, res) => {
     .sort({ completed_at: -1 });
 
     if (!sessions || sessions.length === 0) {
+      console.log(`No completed exams found for student: ${student._id}`);
       return res.status(404).json({ msg: 'No completed exams found for this student' });
     }
 

@@ -28,6 +28,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.19.1",
     "multer": "^2.0.2",
+    "puppeteer": "^24.31.0",
     "sharp": "^0.34.5"
   },
   "devDependencies": {

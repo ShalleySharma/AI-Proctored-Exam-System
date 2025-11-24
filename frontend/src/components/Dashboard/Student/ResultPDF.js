@@ -58,35 +58,44 @@ const ResultPDF = ({ selectedResult, onBack }) => {
             }
             return res.json();
           })
-          .then(data => {
-            console.log('Fetched data:', data);
-            if (data.session) {
-              // Merge API data with base data
-              setFullResult({
-                ...baseResult,
-                ...data.session,
-                student_id: data.session.student_id || baseResult.student_id,
-                exam_id: data.session.exam_id || baseResult.exam_id
-              });
-              setSnapshots(data.snapshots || []);
-            } else {
-              // Use base data if API returns null session
-              setFullResult(baseResult);
-              setSnapshots([]);
-            }
-            setLoading(false);
-          })
+              .then(data => {
+                console.log('Fetched data:', data);
+                if (data.session) {
+                  // Log exam_id from fetched data for debugging
+                  console.log('Fetched session exam_id:', data.session.exam_id);
+                  // Explicitly map only required fields from session instead of spreading entire object
+                  setFullResult({
+                    ...baseResult,
+                    score: data.session.score,
+                    total_questions: data.session.total_questions,
+                    answers: data.session.answers,
+                    violation_counts: data.session.violation_counts,
+                    login_time: data.session.login_time,
+                    logout_time: data.session.logout_time,
+                    status: data.session.status,
+                    student_id: data.session.student_id || baseResult.student_id,
+                    exam_id: data.session.exam_id || baseResult.exam_id,
+                  });
+                  setSnapshots(data.snapshots || []);
+                } else {
+                  // Use base data if API returns null session
+                  setFullResult(baseResult);
+                  setSnapshots([]);
+                }
+                setLoading(false);
+              })
           .catch(err => {
             console.error('Error fetching session details, using base data:', err);
             // Use base data if API fails
             setFullResult(baseResult);
             // Fallback to screenshots from selectedResult if available
-            const fallbackSnapshots = selectedResult.screenshots ? selectedResult.screenshots.map((url, index) => ({
-              image_url: url,
-              violations: ['Screenshot captured'],
-              detections: { person_count: 0, face_count: 0, gaze: 'unknown' },
-              timestamp: selectedResult.completedAt || new Date().toISOString()
-            })) : [];
+              const fallbackSnapshots = selectedResult.screenshots ? selectedResult.screenshots.map((url, index) => ({
+                // Replace invalid placeholder URLs with valid URLs to avoid image load errors
+                image_url: url && url.startsWith('http') ? url : 'https://via.placeholder.com/200x150.png?text=No+Image',
+                violations: ['Screenshot captured'],
+                detections: { person_count: 0, face_count: 0, gaze: 'unknown' },
+                timestamp: selectedResult.completedAt || new Date().toISOString()
+              })) : [];
             setSnapshots(fallbackSnapshots);
             setLoading(false);
           });
@@ -121,6 +130,12 @@ const ResultPDF = ({ selectedResult, onBack }) => {
   const { student_id: student, exam_id: exam, score, total_questions, answers, violation_counts, login_time, logout_time, status, ml_screenshots } = fullResult;
   const attemptedQuestions = answers ? answers.length : 0;
   const totalViolations = violation_counts ? Object.values(violation_counts).reduce((a, b) => a + b, 0) : 0;
+
+  console.log("selectedResult.examDuration = ", selectedResult.examDuration);
+  console.log("Exam duration from fullResult.exam_id:", exam?.duration);
+  // Ensure totalMarks and duration come from exam_id for accuracy
+  const examTotalMarks = exam && exam.totalMarks ? exam.totalMarks : total_questions;
+  const examDuration = (exam && typeof exam.duration === 'number') ? exam.duration : 60;
 
   return (
     <>
@@ -185,8 +200,8 @@ const ResultPDF = ({ selectedResult, onBack }) => {
                       <p className="mb-2"><strong>Title:</strong> {exam?.title || 'N/A'}</p>
                       <p className="mb-2"><strong>Subject:</strong> {exam?.subject || 'N/A'}</p>
                       <p className="mb-2"><strong>Date:</strong> {exam?.date ? new Date(exam.date).toLocaleDateString() : 'N/A'}</p>
-                      <p className="mb-2"><strong>Duration:</strong> {exam?.duration ? `${exam.duration} minutes` : 'N/A'}</p>
-                      <p className="mb-0"><strong>Total Questions:</strong> {total_questions || 'N/A'}</p>
+                      <p className="mb-2"><strong>Duration:</strong> {examDuration ? `${examDuration} minutes` : 'N/A'}</p>
+                      <p className="mb-0"><strong>Total Questions:</strong> {examTotalMarks || 'N/A'}</p>
                     </div>
                   </div>
                 </div>
@@ -211,68 +226,60 @@ const ResultPDF = ({ selectedResult, onBack }) => {
                       <h6 className="mb-0"><i className="bi bi-trophy me-2"></i>Score</h6>
                     </div>
                     <div className="card-body">
-                      <h3 className="text-center">{score || 0} / {exam?.totalMarks || total_questions || 0}</h3>
-                      <p className="text-center">Percentage: {exam?.totalMarks ? ((score / exam.totalMarks) * 100).toFixed(2) : 0}%</p>
+                      <h3 className="text-center">{score || 0} / {examTotalMarks || 0}</h3>
+                      <p className="text-center">Percentage: {examTotalMarks ? ((score / examTotalMarks) * 100).toFixed(2) : 0}%</p>
+{totalViolations > 5 ? (
+  <button style={{ backgroundColor: 'red', color: 'white', fontWeight: 'bold', fontSize: '18px', border: 'none', borderRadius: '6px', padding: '8px 16px', cursor: 'default' }}>Cheat</button>
+) : (
+  <button style={{ backgroundColor: 'green', color: 'white', fontWeight: 'bold', fontSize: '18px', border: 'none', borderRadius: '6px', padding: '8px 16px', cursor: 'default' }}>Not Cheat</button>
+)}
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="card mb-4 border-0 shadow-sm" style={{ borderRadius: '12px' }}>
-                <div className="card-header text-white" style={{ background: 'linear-gradient(135deg, #DC3545 0%, #C82333 100%)', borderRadius: '12px 12px 0 0' }}>
-                  <h6 className="mb-0"><i className="bi bi-shield-exclamation me-2"></i>Cheat Detection Summary</h6>
-                </div>
-                <div className="card-body">
-                  <div className="text-center mb-3">
-                    <h3 className="text-danger">{totalViolations}</h3>
-                    <p className="text-muted mb-0">Total Violations</p>
-                  </div>
-                  <table className="table">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Violation Type</th>
-                        <th>Count</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(violation_counts || {})
-                        .filter(([key]) => !['ml_face_mismatch', 'ml_multiple_faces_detected'].includes(key))
-                        .map(([key, value]) => {
-                          let formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                          formattedKey = formattedKey.replace(/^Ml\s+/, '');
-                          return (
-                            <tr key={key}>
-                              <td>{formattedKey}</td>
-                              <td><span className="badge bg-danger">{value}</span></td>
-                            </tr>
-                          );
-                        })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {(snapshots.length > 0 || (ml_screenshots && ml_screenshots.length > 0)) && (
-                <div className="card mb-4">
-                  <div className="card-header bg-danger text-white">
-                    <h6 className="mb-0"><i className="bi bi-camera me-2"></i>Cheating Screenshots</h6>
-                  </div>
-                  <div className="card-body">
-                    <div className="row">
-                      {snapshots.map((snapshot, index) => (
-                        <div key={index} className="col-md-4 mb-3">
-                          <img src={snapshot.image_url} alt={`Screenshot ${index + 1}`} className="img-fluid rounded" style={{width: '100%', height: '200px', objectFit: 'cover'}} />
-                        </div>
-                      ))}
-                      {ml_screenshots && ml_screenshots.map((screenshot, index) => (
-                        <div key={`ml-${index}`} className="col-md-4 mb-3">
-                          <img src={`http://localhost:5000/uploads/${screenshot}`} alt={`ML Screenshot ${index + 1}`} className="img-fluid rounded" style={{width: '100%', height: '200px', objectFit: 'cover'}} />
+              {/* Enhanced cheat detection summary showing each violation count with professional styling */}
+              <div className="violation-summary" style={{ backgroundColor: '#E6F4F1', borderRadius: '8px', padding: '15px', marginBottom: '20px', boxShadow: '0 2px 8px rgba(0,165,90,0.15)' }}>
+                <h6 style={{ color: '#00A85A', marginBottom: '15px' }}><i className="bi bi-exclamation-triangle me-2"></i>Cheat Detection Summary</h6>
+                {violation_counts && Object.entries(violation_counts).length > 0 ? (
+                  <>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '10px' }}>
+                      {Object.entries(violation_counts)
+                        .filter(([key]) => key !== 'audio_issues' && key !== 'ml_face_mismatch' && key !== 'ml_multiple_faces_detected')
+                        .map(([key, value]) => (
+                        <div key={key} style={{ backgroundColor: '#fff', border: '1px solid #00A85A', borderRadius: '4px', padding: '6px 12px', minWidth: '130px', textAlign: 'center', boxShadow: 'inset 0 0 5px rgba(0,168,90,0.3)' }}>
+                          <div style={{ fontWeight: '600', textTransform: 'capitalize', color: '#00733B' }}>
+                            {key.startsWith('ml_') ? key.slice(3).replace(/_/g, ' ') : key.replace(/_/g, ' ')}
+                          </div>
+                          <div style={{ fontSize: '1.1rem', color: '#00A85A' }}>{value}</div>
                         </div>
                       ))}
                     </div>
+                    <p style={{ fontWeight: '700', fontSize: '1.2rem', color: '#00733B', borderTop: '1px solid #00A85A', paddingTop: '10px' }}>
+                      Total Violations: {totalViolations}
+                    </p>
+                  </>
+                ) : (
+                  <p style={{ color: '#28a745', fontWeight: '600' }}>No violations detected.</p>
+                )}
+              </div>
+
+              {/* Re-added cheating screenshots section with only images */}
+              <div>
+                <h6><i className="bi bi-camera me-2"></i>Violation Evidence Screenshots</h6>
+                {snapshots && snapshots.length > 0 ? (
+                  <div className="snapshot-gallery" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+                    {snapshots.map((snapshot, idx) => (
+                      <div className="snapshot-card" key={idx} style={{ width: '150px', height: '100px', overflow: 'hidden', borderRadius: '6px', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}>
+                        <img src={snapshot.image_url} alt={`Screenshot-${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                    ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <p>No violation evidence screenshots available.</p>
+                )}
+              </div>
+
 
             </div>
           </div>

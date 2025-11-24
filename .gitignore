@@ -166,3 +166,19 @@ backend/uploads/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Added entries for ml_api folder and ML files
+ml_api/node_modules/
+
+ml_api/.env
+ml_api/.env.*
+
+ml_api/logs/
+
+ml_api/uploads/
+
+*.pt
+*.onnx
+ml_api/models/
+ml_api/*.pt
+ml_api/**/*.pt

@@ -62,8 +62,8 @@ router.post('/teacher-signup', uploadSignup.single('photo'), async (req, res) =>
     console.log('Teacher saved:', teacher.email);
     res.json({ msg: 'Teacher signup successful' });
   } catch (err) {
-    console.error('Teacher signup error:', err);
-    res.status(500).send('Server error');
+    console.error('Teacher signup error:', err.message, err.stack);
+    res.status(500).json({ msg: 'Server error', error: err.message });
   }
 });
 

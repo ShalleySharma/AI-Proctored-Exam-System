@@ -1023,20 +1023,7 @@ function ExamPage() {
               />
             </div>
 
-            <div style={{ marginTop: '20px' }}>
-              <h5 style={{ color: '#333', marginBottom: '15px' }}>Recent Violations</h5>
-              {violations.length > 0 ? (
-                <div style={{ fontSize: '1rem', lineHeight: '1.6', color: '#555' }}>
-                  {violations.slice(-5).map((violation, idx) => (
-                    <p key={idx} style={{ margin: '5px 0', color: 'red', fontWeight: 'bold' }}>
-                      ⚠️ {violation.message} <small>({new Date(violation.timestamp).toLocaleTimeString()})</small>
-                    </p>
-                  ))}
-                </div>
-              ) : (
-                <p style={{ fontSize: '1rem', color: '#777' }}>No violations detected yet.</p>
-              )}
-            </div>
+            {/* Removed Recent Violations section to hide it from student UI as requested */}
             </div>
           </div>
 

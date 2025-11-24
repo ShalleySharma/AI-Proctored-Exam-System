@@ -97,16 +97,8 @@ Before running this application, make sure you have the following installed:
 
 5. **Set up the Machine Learning server:**
    ```bash
-   cd ../backend/ml
+   cd ../ml_api
    pip install -r requirements.txt
-   ```
-   Note: Create a `requirements.txt` file in `backend/ml/` with the following dependencies:
-   ```
-   flask
-   ultralytics
-   opencv-python
-   pillow
-   numpy
    ```
 
 6. **Environment Configuration:**
@@ -118,6 +110,12 @@ Before running this application, make sure you have the following installed:
    CLOUDINARY_CLOUD_NAME=your-cloudinary-cloud-name
    CLOUDINARY_API_KEY=your-cloudinary-api-key
    CLOUDINARY_API_SECRET=your-cloudinary-api-secret
+   ML_API=https://your-ml-api-url.onrender.com
+   ```
+
+   Create a `.env` file in the `frontend` directory with the following:
+   ```
+   REACT_APP_API=https://your-backend-api-url.onrender.com
    ```
 
 ## Usage
@@ -127,7 +125,7 @@ Before running this application, make sure you have the following installed:
 
 2. **Start the Machine Learning server:**
    ```bash
-   cd backend/ml
+   cd ml_api
    python ml_server.py
    ```
    The ML server will run on `http://localhost:5001`
@@ -211,7 +209,7 @@ The AI proctoring system uses advanced machine learning techniques:
 - **GET /api/exam/health** - Health check
 
 ### ML Routes (`/api/ml`)
-- Routes for ML service communication (implementation in `backend/ml/routes/mlRoutes.js`)
+- Routes for ML service communication (implementation in `ml_api/routes/mlRoutes.js`)
 
 ## Project Structure
 
@@ -223,106 +221,33 @@ AI-Proctored-Exam-System/
 │   │   └── db.js
 │   ├── middleware/
 │   │   └── auth.js
-│   ├── ml/
-│   │   ├── ml_server.py          # Python Flask ML server
-│   │   ├── ml_detections.py       # ML detection utilities
-│   │   ├── ml_service.py          # ML service functions
-│   │   ├── test_model.py          # Model testing scripts
-│   │   ├── yolov8l.pt             # YOLOv8 model weights
-│   │   ├── models/                # Additional ML models
-│   │   ├── routes/
-│   │   │   └── mlRoutes.js        # ML API routes
-│   │   ├── services/
-│   │   │   ├── pdfGenerator.js    # PDF report generation
-│   │   │   └── screenshotHandler.js # Screenshot processing
-│   │   └── utils/
-│   │       ├── logger.js          # Logging utilities
-│   │       ├── mlProcessor.js     # ML processing logic
-│       │   ├── pythonObjectDetection.js # Python ML integration
-│       │   └── violationCounter.js # Violation tracking
 │   ├── models/
-│   │   ├── Exam.js
-│   │   ├── Session.js
-│   │   ├── Snapshot.js
-│   │   ├── Student.js
-│   │   └── Teacher.js
 │   ├── routes/
 │   │   ├── auth.js
 │   │   └── exam.js
-│   ├── uploads/                   # File upload directories
+│   ├── uploads/
 │   │   ├── snapshots/
 │   │   ├── enter_photos/
-│   │   └── ...
 │   ├── package.json
 │   └── server.js
+├── ml_api/
+│   ├── ml_server.py          # Python Flask ML server
+│   ├── ml_detections.py       # ML detection utilities
+│   ├── ml_service.py          # ML service functions
+│   ├── yolov8l.pt             # YOLOv8 model weights
+│   ├── models/                # Additional ML models
+│   ├── routes/
+│   │   └── mlRoutes.js        # ML API routes
+│   ├── services/
+│   ├── utils/
+│   ├── requirements.txt       # Python dependencies for ML server
 ├── frontend/
 │   ├── public/
 │   ├── src/
-│   │   ├── components/
-│   │   │   ├── AuthPage.css
-│   │   │   ├── Home.js
-│   │   │   ├── Navbar.js
-│   │   │   ├── ProtectedRoute.js
-│   │   │   ├── ToastContext.jsx
-│   │   │   ├── Create Exam/
-│   │   │   │   ├── createexam.css
-│   │   │   │   └── createexam.js
-│   │   │   ├── Dashboard/
-│   │   │   │   ├── Student/
-│   │   │   │   │   ├── ResultPDF.js
-│   │   │   │   │   └── StudentDashboard.js
-│   │   │   │   └── Teacher/
-│   │   │   │       └── InstructorDashboard.js
-│   │   │   ├── Enter Exam/
-│   │   │   │   ├── enterexam.css
-│   │   │   │   └── enterexam.js
-│   │   │   ├── GetStarted/
-│   │   │   │   ├── GetStarted.css
-│   │   │   │   └── GetStarted.js
-│   │   │   ├── Instructions/
-│   │   │   │   ├── Instructions.css
-│   │   │   │   └── Instructions.js
-│   │   │   ├── JoinExam/
-│   │   │   │   ├── JoinExam.css
-│   │   │   │   └── JoinExam.js
-│   │   │   ├── Login/
-│   │   │   │   ├── Student/
-│   │   │   │   │   ├── StudentLogin.css
-│   │   │   │   │   └── StudentLogin.js
-│   │   │   │   └── Teacher/
-│   │   │   │       ├── TeacherLogin.css
-│   │   │   │       └── TeacherLogin.js
-│   │   │   ├── Profile/
-│   │   │   │   ├── Student/
-│   │   │   │   │   ├── studentprofile.css
-│   │   │   │   │   └── studentprofile.js
-│   │   │   │   └── Teacher/
-│   │   │   │       ├── teacherprofile.css
-│   │   │   │       └── teacherprofile.js
-│   │   │   ├── Signin/
-│   │   │   │   ├── Student/
-│   │   │   │   │   ├── StudentSignup.css
-│   │   │   │   │   └── StudentSignup.js
-│   │   │   │   └── Teacher/
-│   │   │   │       ├── TeacherSignup.css
-│   │   │   │       └── TeacherSignup.js
-│   │   │   ├── Take Exam/
-│   │   │   │   ├── takeexam.css
-│   │   │   │   └── takeexam.js
-│   │   │   └── ExamPage.js
-│   │   ├── utils/
-│   │   │   ├── auth.js
-│   │   │   ├── liveMonitoring.js
-│   │   │   └── retryQueue.js
-│   │   ├── App.js
-│   │   ├── index.css
-│   │   ├── index.js
-│   │   └── reportWebVitals.js
-│   └── package.json
-├── package.json
+│   ├── package.json
+│   └── .env
 ├── README.md
-├── TODO.md
-└── .gitignore
+├── .gitignore
 ```
 
 ## Contributing
@@ -338,6 +263,19 @@ Contributions are welcome! Please follow these steps:
 ## License
 
 This project is licensed under the ISC License.
+
+## Recent Changes
+
+### Frontend
+- Updated `frontend/src/components/Dashboard/Student/StudentDashboard.js` to display detailed violation counts in student exam results for gaze away and head movement violations.
+
+### Backend
+- Verified backend routes (`backend/routes/exam.js`) aggregate gaze and head pose violation counts for student results API.
+
+### ML Server
+- Confirmed ML service in `ml_api/ml_server.py` and `ml_api/ml_detections.py` detects gaze away and head rotation violations contributing to reported violations.
+
+---
 
 ## Acknowledgments
 
