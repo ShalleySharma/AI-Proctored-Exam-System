@@ -358,8 +358,13 @@ router.post('/submit', async (req, res) => {
     session.violation_counts = aggregatedCounts;
 
     // Generate PDF
-    const { generateResultPDF } = await import('../services/pdfGenerator.js');
-    const pdfPath = generateResultPDF(session, snapshots);
+    const { generateResultPDFfromHTML } = await import('../services/htmlToPdfGenerator.js');
+
+    // Assuming we have an HTML url for the results page to convert to PDF
+    // You might need to build or determine this URL based on your frontend or server setup
+    const resultsHtmlUrl = `http://localhost:3000/student-dashboard/result/${session._id}`;
+
+    const pdfPath = await generateResultPDFfromHTML(session._id.toString(), resultsHtmlUrl);
 
     // Update session with PDF path
     session.pdf_path = pdfPath;
